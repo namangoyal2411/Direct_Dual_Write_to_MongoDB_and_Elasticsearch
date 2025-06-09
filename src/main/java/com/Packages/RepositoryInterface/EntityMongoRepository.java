@@ -1,7 +1,6 @@
-package com.approach_1.RepositoryInterface;
+package com.Packages.RepositoryInterface;
 
-import com.approach_1.Model.Entity;
-import org.springframework.data.annotation.Id;
+import com.Packages.Model.Entity;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 

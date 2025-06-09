@@ -1,6 +1,7 @@
-package com.approach_1.Model;
+package com.Packages.Model;
 
 
+import com.Packages.DTO.EntityDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,4 +21,12 @@ public class Entity {
     String name ;
     LocalDateTime createTime ;
     LocalDateTime modifiedTime ;
+    public static Entity fromDTO(EntityDTO dto) {
+        return Entity.builder()
+                .id(dto.getId())
+                .name(dto.getName())
+                .createTime(dto.getCreateTime())
+                .modifiedTime(dto.getModifiedTime())
+                .build();
+    }
 }

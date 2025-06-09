@@ -1,9 +1,9 @@
-package com.approach_1.Repository;
+package com.Packages.Repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.*;
-import com.approach_1.DTO.EntityDTO;
-import com.approach_1.Model.Entity;
+import com.Packages.DTO.EntityDTO;
+import com.Packages.Model.Entity;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -15,16 +15,7 @@ public class EntityElasticRepository {
         this.elasticsearchClient = elasticsearchClient;
     }
 
-    public EntityDTO createEntity(String indexName , EntityDTO entityDTO){
-        System.out.println("Attempting to write to ES: " + indexName + ", id: " + entityDTO.getId());
-
-        LocalDateTime localDateTime= LocalDateTime.now();
-        Entity entity = Entity.builder().
-                id(entityDTO.getId()).
-                name(entityDTO.getName()).
-                createTime(localDateTime).
-                modifiedTime(localDateTime).
-                build();
+    public Entity createEntity(String indexName , Entity entity){
       try {
           IndexRequest<Entity> request =IndexRequest.of (i->i
                                         .index(indexName)
@@ -36,7 +27,7 @@ public class EntityElasticRepository {
       catch (Exception e) {
           e.printStackTrace();
       }
-      return entityDTO;
+      return entity;
     }
     public Entity getEntity(String indexName,String documentId) {
         try {
@@ -53,27 +44,20 @@ public class EntityElasticRepository {
             return null;
         }
     }
-    public EntityDTO updateEntity(String indexName, String documentId,EntityDTO entityDTO,LocalDateTime createTime){
-        LocalDateTime localDateTime= LocalDateTime.now();
-        Entity entity = Entity.builder().
-                id(entityDTO.getId()).
-                name(entityDTO.getName()).
-                createTime(createTime).
-                modifiedTime(localDateTime).
-                build();
+    public Entity updateEntity(String indexName, String documentId,Entity entity,LocalDateTime createTime){
         try {
             UpdateRequest<Entity,Entity> request =UpdateRequest.of (u->u
                     .index(indexName)
                     .id(documentId)
-                    .doc(entity).
-                    docAsUpsert(true)
+                    .doc(entity)
+                    .docAsUpsert(true)
             );
             UpdateResponse<Entity> response = elasticsearchClient.update(request,Entity.class);
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-        return entityDTO;
+        return entity;
     }
     public boolean deleteEntity(String indexName, String documentId){
         try {

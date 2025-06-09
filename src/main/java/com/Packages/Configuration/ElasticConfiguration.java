@@ -1,4 +1,4 @@
-package com.approach_1.Configuration;  // (fix spelling if needed!)
+package com.Packages.Configuration;  // (fix spelling if needed!)
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.transport.rest_client.RestClientTransport;

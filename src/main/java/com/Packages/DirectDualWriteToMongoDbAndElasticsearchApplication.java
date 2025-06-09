@@ -1,4 +1,4 @@
-package com.approach_1;
+package com.Packages;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
