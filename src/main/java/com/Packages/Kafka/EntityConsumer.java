@@ -12,17 +12,14 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class EntityConsumer {
-    private final ObjectMapper objectMapper = new ObjectMapper();
     private final EntityElasticRepository entityElasticRepository;
-
     @Autowired
     public EntityConsumer(EntityElasticRepository entityElasticRepository) {
         this.entityElasticRepository = entityElasticRepository;
     }
     @KafkaListener(topics = "Entity", groupId = "es-consumer-group")
-    public void Consume(String message){
+    public void Consume(EntityEvent entityEvent){
         try {
-            EntityEvent entityEvent = objectMapper.readValue(message,EntityEvent.class);
             EntityDTO entityDTO = entityEvent.getEntityDTO();
             String operation = entityEvent.getOperation();
             String indexName= entityEvent.getIndex();
@@ -33,6 +30,8 @@ public class EntityConsumer {
                             indexName,
                             Entity.fromDTO(entityDTO)
                     );
+
+
                     break;
                     case "update":
                     entityElasticRepository.updateEntity(

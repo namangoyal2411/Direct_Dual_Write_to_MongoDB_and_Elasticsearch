@@ -9,5 +9,4 @@ public class DirectDualWriteToMongoDbAndElasticsearchApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(DirectDualWriteToMongoDbAndElasticsearchApplication.class, args);
 	}
-
 }

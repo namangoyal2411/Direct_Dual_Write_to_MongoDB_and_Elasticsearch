@@ -22,6 +22,7 @@ public class EntityElasticRepository {
                                         .id(entity.getId())
                                         .document(entity)
           );
+          System.out.println("naman");
       IndexResponse response = elasticsearchClient.index(request);
       }
       catch (Exception e) {
