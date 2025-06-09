@@ -3,7 +3,7 @@ package com.Packages.Service;
 import com.Packages.DTO.EntityDTO;
 import com.Packages.Model.Entity;
 import com.Packages.Repository.EntityElasticRepository;
-import com.Packages.Repository.EntityRepository;
+import com.Packages.Repository.EntityMongoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,12 +12,12 @@ import java.util.Optional;
 
 
 @Service
-public class FirstApproachService {
-    EntityRepository entityRepository;
+public class DirectDataTransferService {
+    EntityMongoRepository entityMongoRepository;
     EntityElasticRepository entityElasticRepository;
     @Autowired
-    public FirstApproachService(EntityRepository entityRepository, EntityElasticRepository entityElasticRepository) {
-        this.entityRepository = entityRepository;
+    public DirectDataTransferService(EntityMongoRepository entityMongoRepository, EntityElasticRepository entityElasticRepository) {
+        this.entityMongoRepository = entityMongoRepository;
         this.entityElasticRepository = entityElasticRepository;
     }
 
@@ -29,12 +29,12 @@ public class FirstApproachService {
                 createTime(localDateTime).
                 modifiedTime(localDateTime).
                 build();
-        entityRepository.createEntity(entity);
+        entityMongoRepository.createEntity(entity);
         entityElasticRepository.createEntity(indexName,entity);
         return entityDTO;
     }
     public EntityDTO updateEntity(String indexName,String documentId,EntityDTO entityDTO){
-        Optional<Entity> mongoEntityOpt = entityRepository.getEntity(documentId);
+        Optional<Entity> mongoEntityOpt = entityMongoRepository.getEntity(documentId);
         LocalDateTime createTime;
         createTime = mongoEntityOpt.get().getCreateTime();
         LocalDateTime localDateTime= LocalDateTime.now();
@@ -44,12 +44,12 @@ public class FirstApproachService {
                 createTime(createTime).
                 modifiedTime(localDateTime).
                 build();
-        entityRepository.updateEntity(entity);
+        entityMongoRepository.updateEntity(entity);
         entityElasticRepository.updateEntity(indexName,documentId,entity,createTime);
         return entityDTO;
     }
     public boolean deleteEntity(String indexName,String documentId ){
-        if (entityRepository.deleteEntity(documentId)&&entityElasticRepository.deleteEntity(indexName,documentId))
+        if (entityMongoRepository.deleteEntity(documentId)&&entityElasticRepository.deleteEntity(indexName,documentId))
             return true ;
         return false ;
     }

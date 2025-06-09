@@ -30,8 +30,6 @@ public class EntityConsumer {
                             indexName,
                             Entity.fromDTO(entityDTO)
                     );
-
-
                     break;
                     case "update":
                     entityElasticRepository.updateEntity(
