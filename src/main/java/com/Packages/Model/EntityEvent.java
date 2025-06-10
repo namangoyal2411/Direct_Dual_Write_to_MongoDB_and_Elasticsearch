@@ -15,4 +15,5 @@ public class EntityEvent {
     private String operation;
     private String id;
     private String index;
+    private EntityMetadata metadata;
 }

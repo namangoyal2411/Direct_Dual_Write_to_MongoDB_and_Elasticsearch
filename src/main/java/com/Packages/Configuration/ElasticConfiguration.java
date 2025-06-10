@@ -18,17 +18,13 @@ public class ElasticConfiguration {
         RestClient restClient = RestClient.builder(
                 new HttpHost("localhost", 9200, "http")
         ).build();
-
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
-
         JacksonJsonpMapper jacksonMapper = new JacksonJsonpMapper(objectMapper);
-
         RestClientTransport transport = new RestClientTransport(
                 restClient,
                 jacksonMapper
         );
-
         return new ElasticsearchClient(transport);
     }
 }

@@ -1,10 +1,14 @@
 package com.Packages.Model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class EntityMetadata {
     private String metaId;
     private String entityId ;
