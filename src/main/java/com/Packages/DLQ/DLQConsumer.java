@@ -22,9 +22,21 @@ public class DLQConsumer {
         this.entityElasticRepository = entityElasticRepository;
         this.entityMetadataRepository = entityMetadataRepository;
     }
-
     @KafkaListener(topics = "dlq-entity", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent failedEvent) {
+        int maxRetries = 5;
+        int currentRetryCount = failedEvent.getMetadata().getSyncAttempt();
+
+        if (currentRetryCount > maxRetries) {
+            return;
+        }
+        try {
+            long backoffMillis = (long) Math.pow(2, currentRetryCount) * 1000;
+            Thread.sleep(backoffMillis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
         try {
             EntityDTO entityDTO = failedEvent.getEntityDTO();
             String operation = failedEvent.getOperation();
@@ -41,15 +53,40 @@ public class DLQConsumer {
                     entityElasticRepository.deleteEntity(indexName, documentId);
                     break;
             }
-            EntityMetadata entityMetadata = failedEvent.getMetadata();
-            entityMetadata.setEsSyncMillis(System.currentTimeMillis());
-            entityMetadata.setSyncAttempt(entityMetadata.getSyncAttempt() + 1);
-            entityMetadata.setEsStatus("SUCCESS");
-            entityMetadataRepository.save(entityMetadata);
-            System.out.println("Successfully retried DLQ message for " + failedEvent.getId());
+            EntityMetadata metadata = failedEvent.getMetadata();
+            metadata.setEsSyncMillis(System.currentTimeMillis());
+            metadata.setSyncAttempt(metadata.getSyncAttempt() + 1);
+            metadata.setEsStatus("Success");
+            metadata.setDlqReason(null);
+            entityMetadataRepository.save(metadata);
         }
-         catch (Exception e) {
-            System.err.println("Failed to retry DLQ message: " + failedEvent.getId() + " due to: " + e.getMessage());
+        catch (Exception e) {
+            EntityMetadata metadata = failedEvent.getMetadata();
+            metadata.setSyncAttempt(metadata.getSyncAttempt() + 1);
+            metadata.setEsSyncMillis(System.currentTimeMillis());
+            if (isInvalidDataError(e)) {
+                metadata.setEsStatus("failure");
+                metadata.setDlqReason("Invalid data: " + e.getMessage());
+                return ;
+            }   else if (currentRetryCount >= maxRetries) {
+                metadata.setEsStatus("failure after max retries");
+                metadata.setDlqReason("Max retries reached " + e.getMessage());
+                entityMetadataRepository.save(metadata);
+                return;
+            }
+            else {
+                    metadata.setEsStatus("failure");
+                    metadata.setDlqReason("failure due to" + e.getMessage());
+                    entityMetadataRepository.save(metadata);
+                }
+            }
+
+
         }
-    }
+
+public boolean isInvalidDataError(Exception e){
+    String message = e.getMessage().toLowerCase();
+    return message.contains("mapper_parsing_exception") || message.contains("validation") || message.contains("illegal_argument");
 }
+}
+

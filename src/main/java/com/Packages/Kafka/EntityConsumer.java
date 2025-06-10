@@ -17,13 +17,15 @@ import org.springframework.stereotype.Service;
 public class EntityConsumer {
     private final EntityElasticRepository entityElasticRepository;
     private final EntityMetadataRepository entityMetadataRepository;
+    private final KafkaTemplate<String, EntityEvent> kafkaTemplate;
     @Autowired
-    public EntityConsumer(EntityElasticRepository entityElasticRepository, EntityMetadataRepository entityMetadataRepository) {
+    public EntityConsumer(EntityElasticRepository entityElasticRepository,
+                          EntityMetadataRepository entityMetadataRepository,
+                          KafkaTemplate<String, EntityEvent> kafkaTemplate) {
         this.entityElasticRepository = entityElasticRepository;
-        this.entityMetadataRepository= entityMetadataRepository;
+        this.entityMetadataRepository = entityMetadataRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
-    @Autowired
-    private KafkaTemplate<String, EntityEvent> kafkaTemplate;
     @KafkaListener(topics = "Entity", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent){
         try {

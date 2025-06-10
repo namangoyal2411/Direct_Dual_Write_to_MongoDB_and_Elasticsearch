@@ -4,12 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class EntityMetadata {
+    @Id
     private String metaId;
     private String entityId ;
     private String operation;

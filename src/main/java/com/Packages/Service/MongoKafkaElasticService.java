@@ -6,6 +6,7 @@ import com.Packages.Kafka.EntityProducer;
 import com.Packages.Model.Entity;
 import com.Packages.Model.EntityEvent;
 import com.Packages.Model.EntityMetadata;
+import com.Packages.Repository.EntityMetadataRepository;
 import com.Packages.Repository.EntityMongoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,11 @@ import java.util.UUID;
 @Service
 public class MongoKafkaElasticService {
     EntityMongoRepository entityMongoRepository;
+    EntityMetadataRepository entityMetadataRepository;
     @Autowired
-    public MongoKafkaElasticService(EntityMongoRepository entityMongoRepository) {
+    public MongoKafkaElasticService(EntityMongoRepository entityMongoRepository,EntityMetadataRepository entityMetadataRepository) {
         this.entityMongoRepository = entityMongoRepository;
+        this.entityMetadataRepository= entityMetadataRepository;
     }
     @Autowired
     private EntityProducer kafkaProducer;
@@ -47,17 +50,12 @@ public class MongoKafkaElasticService {
                 .dlqReason(null)
                 .build();
         EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEvent.builder()
-                .entityDTO(kafkaEvent)
-                .operation("create")
-                .id(kafkaEvent.getId())
-                .index(indexName)
-                .metadata(entityMetadata)
-                .build();
+        EntityEvent entityEvent = EntityEventmapper("update",kafkaEvent, kafkaEvent.getId(), indexName);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
     public EntityDTO updateEntity(String indexName,String documentId,EntityDTO entityDTO){
+        long mongoWriteMillis = System.currentTimeMillis();
         Entity mongoEntity = entityMongoRepository
                 .getEntity(documentId)
                 .orElseThrow(() -> new EntityNotFoundException(documentId));
@@ -70,28 +68,56 @@ public class MongoKafkaElasticService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.updateEntity(entity);
-        EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEvent.builder()
-                .entityDTO(kafkaEvent)
+        EntityMetadata existingMeta = entityMetadataRepository.getEntityMetaData(documentId);
+        long operationSeq = existingMeta != null ? existingMeta.getOperationSeq() + 1 : 1;
+        EntityMetadata entityMetadata = EntityMetadata.builder()
+                .metaId(UUID.randomUUID().toString())
+                .entityId(documentId)
                 .operation("update")
-                .id(kafkaEvent.getId())
-                .index(indexName)
+                .operationSeq(operationSeq)
+                .mongoWriteMillis(mongoWriteMillis)
+                .esSyncMillis(null)
+                .syncAttempt(0)
+                .mongoStatus("Success")
+                .esStatus("PENDING")
+                .dlqReason(null)
                 .build();
+        entityMetadataRepository.save(entityMetadata);
+        EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
+        EntityEvent entityEvent = EntityEventmapper("update",kafkaEvent,documentId,indexName);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
     public boolean deleteEntity(String indexName,String documentId ){
         if (entityMongoRepository.deleteEntity(documentId)) {
             EntityDTO entityDTO = EntityDTO.builder().id(documentId).build();
-            EntityEvent entityEvent = EntityEvent.builder()
-                    .entityDTO(entityDTO)
-                    .operation("delete")
-                    .id(documentId)
-                    .index(indexName)
-                    .build();
+            EntityEvent entityEvent = EntityEventmapper("delete",entityDTO,documentId,indexName);
             kafkaProducer.sendToKafka(entityEvent);
             return true;
         }
         return false ;
+    }
+    public EntityEvent EntityEventmapper(String operation,EntityDTO entityDTO, String documentId, String indexName){
+        EntityEvent entityEvent= EntityEvent.builder()
+                .entityDTO(entityDTO)
+                .operation(operation)
+                .id(documentId)
+                .index(indexName)
+                .build();
+        EntityMetadata existingMeta = entityMetadataRepository.getEntityMetaData(documentId);
+        long operationSeq = existingMeta != null ? existingMeta.getOperationSeq() + 1 : 1;
+        EntityMetadata entityMetadata = EntityMetadata.builder()
+                .metaId(UUID.randomUUID().toString())
+                .entityId(documentId)
+                .operation("delete")
+                .operationSeq(operationSeq)
+                .mongoWriteMillis(System.currentTimeMillis())
+                .esSyncMillis(null)
+                .syncAttempt(0)
+                .mongoStatus("Deleted")
+                .esStatus("PENDING")
+                .dlqReason(null)
+                .build();
+        return entityEvent;
     }
 }

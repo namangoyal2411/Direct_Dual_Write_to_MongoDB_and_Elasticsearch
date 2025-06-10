@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 
 @Repository
-public class EntityElasticRepository {
+public class  EntityElasticRepository {
     private final ElasticsearchClient elasticsearchClient;
     public EntityElasticRepository(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
