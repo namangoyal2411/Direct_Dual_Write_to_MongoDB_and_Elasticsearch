@@ -1,49 +1,155 @@
+Here's your improved and fully formatted `README.md` file, ready for GitHub, with:
+
+* Proper Markdown formatting
+* Commands inside code blocks
+* Clear structure and spacing
+* Correct placement of configuration properties
+
+You can copy-paste this directly into your GitHub `README.md`:
+
+---
+
+````markdown
 # Project Setup Guide – Spring Boot + Kafka + Elasticsearch + Kibana
+
 This guide explains how I’ve set up my development environment locally (without Docker) to run a Spring Boot application integrated with Kafka, Elasticsearch, and Kibana.
+
+---
+
 ## Tools Used
-- Spring Boot (generated via https://start.spring.io)
+
+- Spring Boot (generated via [https://start.spring.io](https://start.spring.io))
 - Apache Kafka (downloaded and run locally)
 - Elasticsearch (installed locally)
 - Kibana (installed locally)
 - Java 17+
 - Maven
+
+---
+
 ## Project Overview
+
 This Spring Boot app performs the following:
-- Produces and consumes messages using Kafka
-- Stores and searches entity data using Elasticsearch
-- Uses Kibana to monitor and visualize data from Elasticsearch
+
+- Produces and consumes messages using **Kafka**
+- Stores and searches entity data using **Elasticsearch**
+- Uses **Kibana** to monitor and visualize data from Elasticsearch
+
+---
+
 ## Setup Steps
+
 ### 1. Spring Boot Application
-Generated from https://start.spring.io with the following dependencies:
-- Spring Web
-- Spring Kafka
-- Lombok
-- Elasticsearch Java Client
-- Spring Boot DevTools
+
+Generated using [https://start.spring.io](https://start.spring.io) with the following dependencies:
+
+- Spring Web  
+- Spring Kafka  
+- Lombok  
+- Elasticsearch Java Client  
+- Spring Boot DevTools  
 - Spring Configuration Processor
-Run the application:
-Make sure Kafka, Elasticsearch, and Kibana are running before you start the Spring Boot app.
+
+Make sure Kafka, Elasticsearch, and Kibana are running before starting the application.
+
+To run the application:
+
+```bash
+./mvnw spring-boot:run
+````
+
+---
+
 ### 2. Kafka Setup
-Downloaded from: [https://kafka.apache.org/downloads](https://kafka.apache.org/downloads)
-### Steps to Start Kafka
+
+Download Kafka from: [https://kafka.apache.org/downloads](https://kafka.apache.org/downloads)
+
+#### Start Kafka
+
+```bash
 # Step 1: Start Zookeeper
 bin/zookeeper-server-start.sh config/zookeeper.properties
+```
+
+```bash
+# Step 2: Start Kafka Broker (in a new terminal)
+bin/kafka-server-start.sh config/server.properties
+```
+
+#### Create a Kafka Topic (Optional)
+
+```bash
+bin/kafka-topics.sh --create \
+  --topic my-topic \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+```
+
+---
+
 ### 3. Elasticsearch Setup
-Downloaded from: [https://www.elastic.co/downloads/elasticsearch](https://www.elastic.co/downloads/elasticsearch)
-Start Elasticsearch:
+
+Download from: [https://www.elastic.co/downloads/elasticsearch](https://www.elastic.co/downloads/elasticsearch)
+
+#### Start Elasticsearch
+
+```bash
 cd elasticsearch-x.y.z/
 bin/elasticsearch
-Once started, Elasticsearch will be accessible at:
+```
+
+Elasticsearch will be accessible at:
+
+```
 http://localhost:9200
+```
+
+---
+
 ### 4. Kibana Setup
-Downloaded from: https://www.elastic.co/downloads/kibana
-Start Kibana:
+
+Download from: [https://www.elastic.co/downloads/kibana](https://www.elastic.co/downloads/kibana)
+
+#### Start Kibana
+
+```bash
 cd kibana-x.y.z/
 bin/kibana
+```
+
 Kibana UI will be accessible at:
+
+```
 http://localhost:5601
-Kafka
+```
+
+---
+
+## Spring Boot Configuration (`application.properties`)
+
+```properties
+# Kafka Configuration
 spring.kafka.bootstrap-servers=localhost:9092
-Elasticsearch
+
+# Elasticsearch Configuration
 elasticsearch.host=localhost
 elasticsearch.port=9200
+```
+
+---
+
+## Notes
+
+* No Docker is used; all services are started manually.
+* This setup is meant for local development and testing.
+
+```
+
+Let me know if you want to include:
+- Sample API calls
+- Kafka producer/consumer example
+- Sample Elasticsearch query in Kibana
+
+I can extend this further if needed.
+```
