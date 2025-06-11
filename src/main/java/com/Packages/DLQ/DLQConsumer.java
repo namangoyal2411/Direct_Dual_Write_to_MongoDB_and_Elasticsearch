@@ -15,20 +15,23 @@ public class DLQConsumer {
 
     private final EntityElasticRepository entityElasticRepository;
     private final EntityMetadataRepository entityMetadataRepository;
-
+    private final DLQElasticRepository dlqElasticRepository;
     @Autowired
     public DLQConsumer(EntityElasticRepository entityElasticRepository,
-                       EntityMetadataRepository entityMetadataRepository) {
+                       EntityMetadataRepository entityMetadataRepository,
+                       DLQElasticRepository dlqElasticRepository) {
         this.entityElasticRepository = entityElasticRepository;
         this.entityMetadataRepository = entityMetadataRepository;
+        this.dlqElasticRepository= dlqElasticRepository;
     }
-    @KafkaListener(topics = "dlq-entity", groupId = "dlq-consumer-group")
+
+    @KafkaListener(topics = "dlq-entity9", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent failedEvent) {
         int maxRetries = 5;
-        int currentRetryCount = failedEvent.getMetadata().getSyncAttempt();
-
-        if (currentRetryCount > maxRetries) {
-            return;
+        int currentRetryCount = 0;
+        EntityMetadata metadata = failedEvent.getMetadata();
+        if (metadata != null) {
+            currentRetryCount = metadata.getSyncAttempt();
         }
         try {
             long backoffMillis = (long) Math.pow(2, currentRetryCount) * 1000;
@@ -42,6 +45,7 @@ public class DLQConsumer {
             String operation = failedEvent.getOperation();
             String indexName = failedEvent.getIndex();
             String documentId = failedEvent.getId();
+
             switch (operation) {
                 case "create":
                     entityElasticRepository.createEntity(indexName, Entity.fromDTO(entityDTO));
@@ -52,41 +56,46 @@ public class DLQConsumer {
                 case "delete":
                     entityElasticRepository.deleteEntity(indexName, documentId);
                     break;
+                default:
+                    System.err.println("Unsupported operation: " + operation);
+                    return;
             }
-            EntityMetadata metadata = failedEvent.getMetadata();
-            metadata.setEsSyncMillis(System.currentTimeMillis());
-            metadata.setSyncAttempt(metadata.getSyncAttempt() + 1);
-            metadata.setEsStatus("Success");
-            metadata.setDlqReason(null);
-            entityMetadataRepository.save(metadata);
+            if (metadata != null) {
+                metadata.setEsSyncMillis(System.currentTimeMillis());
+                metadata.setSyncAttempt(currentRetryCount + 1);
+                metadata.setEsStatus("Success");
+                metadata.setDlqReason(null);
+                entityMetadataRepository.save(metadata);
+            }
+            dlqElasticRepository.saveDLQEvent("entity_dlq", failedEvent);
+        } catch (Exception e) {
+            handleProcessingFailure(failedEvent, currentRetryCount, maxRetries, e);
         }
-        catch (Exception e) {
-            EntityMetadata metadata = failedEvent.getMetadata();
-            metadata.setSyncAttempt(metadata.getSyncAttempt() + 1);
+    }
+
+    private void handleProcessingFailure(EntityEvent failedEvent, int currentRetryCount, int maxRetries, Exception e) {
+        EntityMetadata metadata = failedEvent.getMetadata();
+        if (metadata != null) {
+            metadata.setSyncAttempt(currentRetryCount + 1);
             metadata.setEsSyncMillis(System.currentTimeMillis());
             if (isInvalidDataError(e)) {
                 metadata.setEsStatus("failure");
                 metadata.setDlqReason("Invalid data: " + e.getMessage());
-                return ;
-            }   else if (currentRetryCount >= maxRetries) {
-                metadata.setEsStatus("failure after max retries");
-                metadata.setDlqReason("Max retries reached " + e.getMessage());
-                entityMetadataRepository.save(metadata);
-                return;
+            } else if (currentRetryCount >= maxRetries) {
+                metadata.setDlqReason("Max retries reached: " + e.getMessage());
+            } else {
+                metadata.setEsStatus("failure");
+                metadata.setDlqReason("Failure due to: " + e.getMessage());
             }
-            else {
-                    metadata.setEsStatus("failure");
-                    metadata.setDlqReason("failure due to" + e.getMessage());
-                    entityMetadataRepository.save(metadata);
-                }
-            }
-
-
+            entityMetadataRepository.save(metadata);
         }
+    }
 
-public boolean isInvalidDataError(Exception e){
-    String message = e.getMessage().toLowerCase();
-    return message.contains("mapper_parsing_exception") || message.contains("validation") || message.contains("illegal_argument");
+    public boolean isInvalidDataError(Exception e) {
+        if (e.getMessage() == null) return false;
+        String message = e.getMessage().toLowerCase();
+        return message.contains("mapper_parsing_exception")
+                || message.contains("validation")
+                || message.contains("illegal_argument");
+    }
 }
-}
-

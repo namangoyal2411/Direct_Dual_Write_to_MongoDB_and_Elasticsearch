@@ -3,6 +3,7 @@ package com.Packages.Repository;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.Packages.Model.Entity;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -10,13 +11,15 @@ import java.util.Random;
 
 @Repository
 @Primary
+@Profile("test")
 public class ControlledElasticRepository extends EntityElasticRepository {
     private final double successRate;
     private final Random random = new Random();
 
     public ControlledElasticRepository(ElasticsearchClient elasticsearchClient) {
         super(elasticsearchClient);
-        this.successRate = Double.parseDouble(System.getenv().getOrDefault("ESSuceessRate", "0.8"));
+        this.successRate = 0.1;
+        System.out.println("Using ControlledElasticRepository with successRate = " + successRate);
     }
 
     private boolean shouldFail() {

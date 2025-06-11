@@ -1,13 +1,13 @@
 package com.Packages.Repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.GetRequest;
-import co.elastic.clients.elasticsearch.core.GetResponse;
-import co.elastic.clients.elasticsearch.core.IndexRequest;
-import co.elastic.clients.elasticsearch.core.IndexResponse;
+import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.Packages.Model.Entity;
 import com.Packages.Model.EntityMetadata;
 import org.springframework.stereotype.Repository;
+
+import java.util.List;
 
 @Repository
 public class EntityMetadataRepository {
@@ -16,10 +16,12 @@ public class EntityMetadataRepository {
         this.elasticsearchClient = elasticsearchClient;
     }
     public void save (EntityMetadata entityMetadata){
+        if(entityMetadata == null)
+            return ;
         try {
             IndexRequest<EntityMetadata> request = IndexRequest.of(i -> i
                     .index("entity_metadata")
-                    .id(entityMetadata.getEntityId())
+                    .id(entityMetadata.getMetaId())
                     .document(entityMetadata)
             );
             IndexResponse response=  elasticsearchClient.index(request);
@@ -31,11 +33,26 @@ public class EntityMetadataRepository {
     }
     public EntityMetadata getEntityMetaData(String documentId) {
         try {
-            GetRequest getRequest = GetRequest.of(g -> g.index("entity_metadata").id(documentId));
-            GetResponse<EntityMetadata> response = elasticsearchClient.get(getRequest, EntityMetadata.class);
-            if (response.found()) {
-                EntityMetadata entityMetadata = response.source();
-                return entityMetadata;
+            SearchResponse<EntityMetadata> response = elasticsearchClient.search(s -> s
+                            .index("entity_metadata")
+                            .query(q -> q
+                                    .term(t -> t
+                                            .field("entityId")
+                                            .value(documentId)
+                                    )
+                            )
+                            .sort(srt -> srt
+                                    .field(f -> f
+                                            .field("mongoWriteMillis")
+                                            .order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)
+                                    )
+                            )
+                            .size(1),
+                    EntityMetadata.class
+            );
+            List<Hit<EntityMetadata>> hits = response.hits().hits();
+            if (!hits.isEmpty()) {
+                return hits.get(0).source();
             } else {
                 return null;
             }

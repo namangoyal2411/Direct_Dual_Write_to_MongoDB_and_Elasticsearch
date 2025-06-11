@@ -49,8 +49,9 @@ public class MongoKafkaElasticService {
                 .esStatus("PENDING")
                 .dlqReason(null)
                 .build();
+        entityMetadataRepository.save(entityMetadata);
         EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEventmapper("update",kafkaEvent, kafkaEvent.getId(), indexName);
+        EntityEvent entityEvent = EntityEventmapper("create",kafkaEvent, kafkaEvent.getId(), indexName,entityMetadata);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
@@ -84,39 +85,41 @@ public class MongoKafkaElasticService {
                 .build();
         entityMetadataRepository.save(entityMetadata);
         EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEventmapper("update",kafkaEvent,documentId,indexName);
+        EntityEvent entityEvent = EntityEventmapper("update",kafkaEvent,documentId,indexName,entityMetadata);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
     public boolean deleteEntity(String indexName,String documentId ){
         if (entityMongoRepository.deleteEntity(documentId)) {
             EntityDTO entityDTO = EntityDTO.builder().id(documentId).build();
-            EntityEvent entityEvent = EntityEventmapper("delete",entityDTO,documentId,indexName);
+            EntityMetadata existingMeta = entityMetadataRepository.getEntityMetaData(documentId);
+            long operationSeq = existingMeta != null ? existingMeta.getOperationSeq() + 1 : 1;
+            EntityMetadata entityMetadata = EntityMetadata.builder()
+                    .metaId(UUID.randomUUID().toString())
+                    .entityId(documentId)
+                    .operation("delete")
+                    .operationSeq(operationSeq)
+                    .mongoWriteMillis(System.currentTimeMillis())
+                    .esSyncMillis(null)
+                    .syncAttempt(0)
+                    .mongoStatus("Deleted")
+                    .esStatus("PENDING")
+                    .dlqReason(null)
+                    .build();
+            entityMetadataRepository.save(entityMetadata);
+            EntityEvent entityEvent = EntityEventmapper("delete",entityDTO,documentId,indexName,entityMetadata);
             kafkaProducer.sendToKafka(entityEvent);
             return true;
         }
         return false ;
     }
-    public EntityEvent EntityEventmapper(String operation,EntityDTO entityDTO, String documentId, String indexName){
+    public EntityEvent EntityEventmapper(String operation,EntityDTO entityDTO, String documentId, String indexName,EntityMetadata entityMetadata){
         EntityEvent entityEvent= EntityEvent.builder()
                 .entityDTO(entityDTO)
                 .operation(operation)
                 .id(documentId)
                 .index(indexName)
-                .build();
-        EntityMetadata existingMeta = entityMetadataRepository.getEntityMetaData(documentId);
-        long operationSeq = existingMeta != null ? existingMeta.getOperationSeq() + 1 : 1;
-        EntityMetadata entityMetadata = EntityMetadata.builder()
-                .metaId(UUID.randomUUID().toString())
-                .entityId(documentId)
-                .operation("delete")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(System.currentTimeMillis())
-                .esSyncMillis(null)
-                .syncAttempt(0)
-                .mongoStatus("Deleted")
-                .esStatus("PENDING")
-                .dlqReason(null)
+                .metadata(entityMetadata)
                 .build();
         return entityEvent;
     }
