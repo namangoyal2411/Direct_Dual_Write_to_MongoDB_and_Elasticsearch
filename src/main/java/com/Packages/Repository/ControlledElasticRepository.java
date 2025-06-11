@@ -18,7 +18,7 @@ public class ControlledElasticRepository extends EntityElasticRepository {
 
     public ControlledElasticRepository(ElasticsearchClient elasticsearchClient) {
         super(elasticsearchClient);
-        this.successRate = 0.8;
+        this.successRate = 0.1;
         System.out.println("Using ControlledElasticRepository with successRate = " + successRate);
     }
 

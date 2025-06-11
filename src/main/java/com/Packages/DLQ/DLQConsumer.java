@@ -8,6 +8,7 @@ import com.Packages.Repository.EntityElasticRepository;
 import com.Packages.Repository.EntityMetadataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -15,107 +16,114 @@ import java.util.UUID;
 @Service
 public class DLQConsumer {
 
-    private final EntityElasticRepository entityElasticRepository;
-    private final EntityMetadataRepository entityMetadataRepository;
+    private static final int MAX_RETRIES = 5;
+
+    private final EntityElasticRepository elasticRepository;
+    private final EntityMetadataRepository metadataRepository;
     private final DLQElasticRepository dlqElasticRepository;
+    private final KafkaTemplate<String, EntityEvent> kafkaTemplate;
+
     @Autowired
-    public DLQConsumer(EntityElasticRepository entityElasticRepository,
-                       EntityMetadataRepository entityMetadataRepository,
-                       DLQElasticRepository dlqElasticRepository) {
-        this.entityElasticRepository = entityElasticRepository;
-        this.entityMetadataRepository = entityMetadataRepository;
-        this.dlqElasticRepository= dlqElasticRepository;
+    public DLQConsumer(EntityElasticRepository elasticRepository,
+                       EntityMetadataRepository metadataRepository,
+                       DLQElasticRepository dlqElasticRepository,
+                       KafkaTemplate<String, EntityEvent> kafkaTemplate) {
+        this.elasticRepository = elasticRepository;
+        this.metadataRepository = metadataRepository;
+        this.dlqElasticRepository = dlqElasticRepository;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = "dlq-entity10", groupId = "dlq-consumer-group")
-    public void consumeDLQ(EntityEvent failedEvent) {
-        int maxRetries = 5;
-        int currentRetryCount = 0;
-        EntityMetadata metadata = failedEvent.getMetadata();
-        if (metadata != null) {
-            currentRetryCount = metadata.getSyncAttempt();
-        }
+    @KafkaListener(topics = "dlq-entity14", groupId = "dlq-consumer-group")
+    public void consumeDLQ(EntityEvent event) {
+        EntityMetadata originalMeta = event.getMetadata();
+        if (originalMeta == null) return;
+        EntityMetadata latestMeta = metadataRepository.getEntityMetaData(originalMeta.getEntityId(), originalMeta.getOperation(), originalMeta.getOperationSeq());
+        int currentRetry = latestMeta != null ? latestMeta.getSyncAttempt() : 0;
         try {
-            long backoffMillis = (long) Math.pow(2, currentRetryCount) * 1000;
-            Thread.sleep(backoffMillis);
-        } catch (InterruptedException e) {
+            Thread.sleep((long) Math.pow(2, currentRetry) * 1000);
+        } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             return;
         }
+
         try {
-            EntityDTO entityDTO = failedEvent.getEntityDTO();
-            String operation = failedEvent.getOperation();
-            String indexName = failedEvent.getIndex();
-            String documentId = failedEvent.getId();
+            EntityDTO dto = event.getEntityDTO();
+            String op = event.getOperation();
+            String idx = event.getIndex();
+            String id = event.getId();
 
-            switch (operation) {
-                case "create":
-                    entityElasticRepository.createEntity(indexName, Entity.fromDTO(entityDTO));
-                    break;
-                case "update":
-                    entityElasticRepository.updateEntity(indexName, documentId, Entity.fromDTO(entityDTO), entityDTO.getCreateTime());
-                    break;
-                case "delete":
-                    entityElasticRepository.deleteEntity(indexName, documentId);
-                    break;
-                default:
-                    System.err.println("Unsupported operation: " + operation);
+            switch (op) {
+                case "create" ->
+                        elasticRepository.createEntity(idx, Entity.fromDTO(dto));
+                case "update" ->
+                        elasticRepository.updateEntity(idx, id, Entity.fromDTO(dto), dto.getCreateTime());
+                case "delete" ->
+                        elasticRepository.deleteEntity(idx, id);
+                default -> {
+                    System.err.println("Unsupported operation: " + op);
                     return;
+                }
             }
-            if (metadata != null) {
-                EntityMetadata successMeta = EntityMetadata.builder()
-                        .metaId(UUID.randomUUID().toString())
-                        .entityId(metadata.getEntityId())
-                        .operation(metadata.getOperation())
-                        .operationSeq(metadata.getOperationSeq())
-                        .mongoWriteMillis(metadata.getMongoWriteMillis())
-                        .esSyncMillis(System.currentTimeMillis())
-                        .syncAttempt(currentRetryCount + 1)
-                        .mongoStatus(metadata.getMongoStatus())
-                        .esStatus("Success")
-                        .dlqReason(null)
-                        .build();
-                entityMetadataRepository.save(successMeta);
-            }
-            dlqElasticRepository.saveDLQEvent("entity_dlq", failedEvent);
-        } catch (Exception e) {
-            handleProcessingFailure(failedEvent, currentRetryCount, maxRetries, e);
-        }
-    }
-
-    private void handleProcessingFailure(EntityEvent failedEvent, int currentRetryCount, int maxRetries, Exception e) {
-        EntityMetadata metadata = failedEvent.getMetadata();
-
-        if (metadata != null) {String dlqReason;
-            if (isInvalidDataError(e)) {
-                dlqReason = "Invalid data: " + e.getMessage();
-            } else if (currentRetryCount >= maxRetries) {
-                dlqReason = "Max retries reached: " + e.getMessage();
-            } else {
-                dlqReason = "Failure due to: " + e.getMessage();
-            }
-
-            EntityMetadata retryMetadata = EntityMetadata.builder()
+            EntityMetadata successMeta = EntityMetadata.builder()
                     .metaId(UUID.randomUUID().toString())
-                    .entityId(metadata.getEntityId())
-                    .operation(metadata.getOperation())
-                    .operationSeq(metadata.getOperationSeq())
-                    .mongoWriteMillis(metadata.getMongoWriteMillis())
+                    .entityId(originalMeta.getEntityId())
+                    .operation(op)
+                    .operationSeq(originalMeta.getOperationSeq())
+                    .mongoWriteMillis(originalMeta.getMongoWriteMillis())
                     .esSyncMillis(System.currentTimeMillis())
-                    .syncAttempt(currentRetryCount + 1)
-                    .mongoStatus(metadata.getMongoStatus())
-                    .esStatus("failure")
-                    .dlqReason(dlqReason)
+                    .syncAttempt(currentRetry + 1)
+                    .mongoStatus(originalMeta.getMongoStatus())
+                    .esStatus("SUCCESS")
+                    .dlqReason(null)
                     .build();
-            entityMetadataRepository.save(retryMetadata);
+            metadataRepository.save(successMeta);
+            dlqElasticRepository.saveDLQEvent("entity_dlq", event);
+
+        } catch (Exception ex) {
+            handleRetryFailure(event, originalMeta, currentRetry, ex);
         }
     }
 
-    public boolean isInvalidDataError(Exception e) {
-        if (e.getMessage() == null) return false;
-        String message = e.getMessage().toLowerCase();
-        return message.contains("mapper_parsing_exception")
-                || message.contains("validation")
-                || message.contains("illegal_argument");
+    private void handleRetryFailure(EntityEvent event,
+                                    EntityMetadata originalMeta,
+                                    int currentRetry,
+                                    Exception ex) {
+        String reason;
+        if (isInvalidDataError(ex)) {
+            reason = "Invalid data: " + ex.getMessage();
+        } else if (currentRetry >= MAX_RETRIES) {
+            reason = "Max retries reached: " + ex.getMessage();
+        } else {
+            reason = "Failure due to: " + ex.getMessage();
+        }
+        EntityMetadata retryMeta = EntityMetadata.builder()
+                .metaId(UUID.randomUUID().toString())
+                .entityId(originalMeta.getEntityId())
+                .operation(originalMeta.getOperation())
+                .operationSeq(originalMeta.getOperationSeq())
+                .mongoWriteMillis(originalMeta.getMongoWriteMillis())
+                .esSyncMillis(null)
+                .syncAttempt(currentRetry + 1)
+                .mongoStatus(originalMeta.getMongoStatus())
+                .esStatus("FAILURE")
+                .dlqReason(reason)
+                .build();
+        metadataRepository.save(retryMeta);
+        event.setMetadata(retryMeta);
+        if (currentRetry + 1 < MAX_RETRIES) {
+            kafkaTemplate.send("dlq-entity14", retryMeta.getEntityId(), event);
+        } else {
+            System.err.println("Giving up retries for " + retryMeta.getEntityId());
+        }
+    }
+
+    private boolean isInvalidDataError(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) return false;
+        msg = msg.toLowerCase();
+        return msg.contains("mapper_parsing_exception") ||
+                msg.contains("validation") ||
+                msg.contains("illegal_argument");
     }
 }

@@ -1,6 +1,7 @@
 package com.Packages.Repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import com.Packages.Model.Entity;
@@ -31,35 +32,64 @@ public class EntityMetadataRepository {
             e.printStackTrace();
         }
     }
-    public EntityMetadata getEntityMetaData(String documentId) {
+    public EntityMetadata getEntityMetaData(String entityId, String operation, long operationSeq) {
         try {
             SearchResponse<EntityMetadata> response = elasticsearchClient.search(s -> s
                             .index("entity_metadata")
                             .query(q -> q
-                                    .term(t -> t
-                                            .field("entityId")
-                                            .value(documentId)
+                                    .bool(b -> b
+                                            .must(
+                                                    m -> m.term(t -> t.field("entityId").value(entityId)),
+                                                    m -> m.term(t -> t.field("operation").value(operation)),
+                                                    m -> m.term(t -> t.field("operationSeq").value(operationSeq))
+                                            )
                                     )
                             )
-                            .sort(srt -> srt
-                                    .field(f -> f
-                                            .field("mongoWriteMillis")
-                                            .order(co.elastic.clients.elasticsearch._types.SortOrder.Desc)
-                                    )
+                            .sort(s -> s
+                                    .field(f -> f.field("syncAttempt").order(SortOrder.Desc))
                             )
                             .size(1),
                     EntityMetadata.class
             );
-            List<Hit<EntityMetadata>> hits = response.hits().hits();
-            if (!hits.isEmpty()) {
-                return hits.get(0).source();
-            } else {
-                return null;
-            }
+
+            return response.hits().hits().isEmpty() ? null : response.hits().hits().get(0).source();
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
+
+    public Long getLatestOperationSeq(String entityId) {
+        try {
+            SearchResponse<EntityMetadata> response = elasticsearchClient.search(s -> s
+                            .index("entity_metadata")
+                            .query(q -> q
+                                    .bool(b -> b
+                                            .must(
+                                                    m -> m.term(t -> t.field("entityId").value(entityId)),
+                                            )
+                                    )
+                            )
+                            .sort(s -> s
+                                    .field(f -> f.field("operationSeq").order(SortOrder.Desc))
+                            )
+                            .size(1),
+                    EntityMetadata.class
+            );
+
+            if (!response.hits().hits().isEmpty()) {
+                return response.hits().hits().get(0).source().getOperationSeq();
+            } else {
+                return 0L;
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0L;
+        }
+    }
+
+
 }
 

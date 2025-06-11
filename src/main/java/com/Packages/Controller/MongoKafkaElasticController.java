@@ -29,36 +29,36 @@ public class MongoKafkaElasticController {
     public boolean deleteEntity(@RequestParam String indexName,@PathVariable String documentId){
         return mongoKafkaElasticService.deleteEntity(indexName,documentId);
     }
-    @PostMapping("/test/load")
-    public ResponseEntity<String> loadTestData(@RequestParam(defaultValue = "100") int count) {
-        for (int i = 0; i < count; i++) {
-            String id = "test-id-" + i;
-            EntityDTO dto = new EntityDTO();
-            dto.setId(id);
-            dto.setName("Test Entity " + i);
-            dto.setCreateTime(LocalDateTime.now());
-            dto.setModifiedTime(LocalDateTime.now());
-            try {
-                mongoKafkaElasticService.createEntity(dto, "entity");
-            } catch (Exception e) {
-                System.err.println("Error creating entity #" + i + ": " + e.getMessage());
-            }
-            try {
-                dto.setName("Updated Test Entity " + i);
-                dto.setModifiedTime(LocalDateTime.now());
-                mongoKafkaElasticService.updateEntity("entity",dto.getId(),dto);
-            } catch (Exception e) {
-                System.err.println("Error updating entity #" + i + ": " + e.getMessage());
-            }
-//            if (i % 10 == 0) {
-//                try {
-//                    mongoKafkaElasticService.deleteEntity("entity", id);
-//                } catch (Exception e) {
-//                    System.err.println("Error deleting entity #" + i + ": " + e.getMessage());
-//                }
+//  @PostMapping("/test/load")
+//    public ResponseEntity<String> loadTestData(@RequestParam(defaultValue = "100") int count) {
+//        for (int i = 0; i < count; i++) {
+//            String id = "test-id-" + i;
+//            EntityDTO dto = new EntityDTO();
+//            dto.setId(id);
+//            dto.setName("Test Entity " + i);
+//            dto.setCreateTime(LocalDateTime.now());
+//            dto.setModifiedTime(LocalDateTime.now());
+//            try {
+//                mongoKafkaElasticService.createEntity(dto, "entity");
+//            } catch (Exception e) {
+//                System.err.println("Error creating entity #" + i + ": " + e.getMessage());
 //            }
-        }
-        return ResponseEntity.ok("Test data load complete for " + count + " entities");
-    }
+//            try {
+//                dto.setName("Updated Test Entity " + i);
+//                dto.setModifiedTime(LocalDateTime.now());
+//                mongoKafkaElasticService.updateEntity("entity",dto.getId(),dto);
+//            } catch (Exception e) {
+//                System.err.println("Error updating entity #" + i + ": " + e.getMessage());
+//            }
+////            if (i % 10 == 0) {
+////                try {
+////                    mongoKafkaElasticService.deleteEntity("entity", id);
+////                } catch (Exception e) {
+////                    System.err.println("Error deleting entity #" + i + ": " + e.getMessage());
+////                }
+////            }
+//        }
+//        return ResponseEntity.ok("Test data load complete for " + count + " entities");
+//    }
 
 }

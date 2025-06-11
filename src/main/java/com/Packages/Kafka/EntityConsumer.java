@@ -13,6 +13,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 public class EntityConsumer {
     private final EntityElasticRepository entityElasticRepository;
@@ -26,12 +28,12 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "Entity10", groupId = "es-consumer-group")
+    @KafkaListener(topics = "Entity14", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent){
         try {
             EntityDTO entityDTO = entityEvent.getEntityDTO();
             String operation = entityEvent.getOperation();
-            String indexName= entityEvent.getIndex();
+            String indexName = entityEvent.getIndex();
             String documentId = entityEvent.getId();
             switch (operation) {
                 case "create":
@@ -40,7 +42,7 @@ public class EntityConsumer {
                             Entity.fromDTO(entityDTO)
                     );
                     break;
-                    case "update":
+                case "update":
                     entityElasticRepository.updateEntity(
                             indexName,
                             documentId,
@@ -48,32 +50,52 @@ public class EntityConsumer {
                             entityDTO.getCreateTime()
                     );
                     break;
-                    case "delete":
+                case "delete":
                     entityElasticRepository.deleteEntity(indexName, documentId);
                     break;
             }
             EntityMetadata entityMetadata = entityEvent.getMetadata();
-            if (entityMetadata !=null){
-            entityMetadata.setEsSyncMillis(System.currentTimeMillis());
-            entityMetadata.setSyncAttempt(entityMetadata.getSyncAttempt() + 1);
-            entityMetadata.setEsStatus("SUCCESS");
-            entityMetadataRepository.save(entityMetadata);}
+            if (entityMetadata != null) {
+                EntityMetadata successMeta = EntityMetadata.builder()
+                        .metaId(UUID.randomUUID().toString())
+                        .entityId(entityMetadata.getEntityId())
+                        .operation(entityMetadata.getOperation())
+                        .operationSeq(entityMetadata.getOperationSeq())
+                        .mongoWriteMillis(entityMetadata.getMongoWriteMillis())
+                        .esSyncMillis(System.currentTimeMillis())
+                        .syncAttempt(entityMetadata.getSyncAttempt() + 1)
+                        .mongoStatus(entityMetadata.getMongoStatus())
+                        .esStatus("SUCCESS")
+                        .dlqReason(null)
+                        .build();
+                entityMetadataRepository.save(successMeta);
+            }
         }
         catch (Exception e) {
             System.err.println("Failed to save data in Elasticsearch"+e.getMessage());
             sendToDLQ(entityEvent, e);
             if (entityEvent.getMetadata() != null) {
-                EntityMetadata metadata = entityEvent.getMetadata();
-                metadata.setEsStatus("FAILURE");
-                metadata.setDlqReason(e.getMessage());
-                entityMetadataRepository.save(metadata);
+                EntityMetadata originalMeta = entityEvent.getMetadata();
+                EntityMetadata failureMeta = EntityMetadata.builder()
+                        .metaId(UUID.randomUUID().toString())
+                        .entityId(originalMeta.getEntityId())
+                        .operation(originalMeta.getOperation())
+                        .operationSeq(originalMeta.getOperationSeq())
+                        .mongoWriteMillis(originalMeta.getMongoWriteMillis())
+                        .esSyncMillis(System.currentTimeMillis())
+                        .syncAttempt(originalMeta.getSyncAttempt() + 1)
+                        .mongoStatus(originalMeta.getMongoStatus())
+                        .esStatus("FAILURE")
+                        .dlqReason(e.getMessage())
+                        .build();
+                entityMetadataRepository.save(failureMeta);
             }
             throw new RuntimeException("Failed to sync to Elasticsearch", e);
         }
     }
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq-entity10",failedEvent.getEntityDTO().getId(), failedEvent);
+            kafkaTemplate.send("dlq-entity14",failedEvent.getEntityDTO().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());

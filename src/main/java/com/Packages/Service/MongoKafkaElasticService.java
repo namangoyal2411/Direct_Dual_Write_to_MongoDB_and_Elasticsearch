@@ -69,8 +69,8 @@ public class MongoKafkaElasticService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.updateEntity(entity);
-        EntityMetadata existingMeta = entityMetadataRepository.getEntityMetaData(documentId);
-        long operationSeq = existingMeta != null ? existingMeta.getOperationSeq() + 1 : 1;
+        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId);
+        long operationSeq = previousOpSeq + 1;
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(documentId)
@@ -92,8 +92,8 @@ public class MongoKafkaElasticService {
     public boolean deleteEntity(String indexName,String documentId ){
         if (entityMongoRepository.deleteEntity(documentId)) {
             EntityDTO entityDTO = EntityDTO.builder().id(documentId).build();
-            EntityMetadata existingMeta = entityMetadataRepository.getEntityMetaData(documentId);
-            long operationSeq = existingMeta != null ? existingMeta.getOperationSeq() + 1 : 1;
+            long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId);
+            long operationSeq = previousOpSeq + 1;
             EntityMetadata entityMetadata = EntityMetadata.builder()
                     .metaId(UUID.randomUUID().toString())
                     .entityId(documentId)
