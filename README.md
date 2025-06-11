@@ -1,7 +1,7 @@
 
 # Project Setup Guide – Spring Boot + Kafka + Elasticsearch + Kibana
 
-This guide explains how I’ve set up my development environment locally (without Docker) to run a Spring Boot application integrated with Kafka, Elasticsearch, and Kibana.
+This guide explains how I’ve set up my development environment locally to run a Spring Boot application integrated with Kafka, Elasticsearch, and Kibana.
 
 ---
 
