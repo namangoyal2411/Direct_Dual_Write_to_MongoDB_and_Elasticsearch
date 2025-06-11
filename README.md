@@ -1,7 +1,7 @@
 
-# Project Setup Guide – Spring Boot + Kafka + Elasticsearch + Kibana
+# Project Setup Guide – Spring Boot + Kafka + Elasticsearch + Kibana + MongoDB
 
-This guide explains how I’ve set up my development environment locally to run a Spring Boot application integrated with Kafka, Elasticsearch, and Kibana.
+This guide explains how I’ve set up my development environment locally (without Docker) to run a Spring Boot application integrated with Kafka, Elasticsearch, Kibana, and MongoDB.
 
 ---
 
@@ -11,6 +11,7 @@ This guide explains how I’ve set up my development environment locally to run 
 - Apache Kafka (downloaded and run locally)
 - Elasticsearch (installed locally)
 - Kibana (installed locally)
+- MongoDB (installed locally)
 - Java 17+
 - Maven
 
@@ -22,6 +23,7 @@ This Spring Boot app performs the following:
 
 - Produces and consumes messages using **Kafka**
 - Stores and searches entity data using **Elasticsearch**
+- Stores raw or processed data in **MongoDB**
 - Uses **Kibana** to monitor and visualize data from Elasticsearch
 
 ---
@@ -34,12 +36,13 @@ Generated using [https://start.spring.io](https://start.spring.io) with the foll
 
 - Spring Web  
 - Spring Kafka  
+- Spring Data MongoDB  
 - Lombok  
 - Elasticsearch Java Client  
 - Spring Boot DevTools  
 - Spring Configuration Processor
 
-Make sure Kafka, Elasticsearch, and Kibana are running before starting the application.
+Make sure Kafka, MongoDB, Elasticsearch, and Kibana are running before starting the application.
 
 To run the application:
 
@@ -94,6 +97,12 @@ Elasticsearch will be accessible at:
 http://localhost:9200
 ```
 
+You can verify it's running with:
+
+```bash
+curl http://localhost:9200
+```
+
 ---
 
 ### 4. Kibana Setup
@@ -115,13 +124,47 @@ http://localhost:5601
 
 ---
 
+### 5. MongoDB Setup
+
+Download MongoDB from: [https://www.mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+
+#### Start MongoDB
+
+If you installed MongoDB via your system's package manager, you can typically start it with:
+
+```bash
+mongod
+```
+
+MongoDB will be accessible at:
+
+```
+mongodb://localhost:27017
+```
+
+You can connect using the Mongo shell:
+
+```bash
+mongo
+```
+
+Or using any MongoDB client like MongoDB Compass.
+
+---
+
 ## Spring Boot Configuration (`application.properties`)
 
 ```properties
-# Kafka Configuration
+# Kafka
 spring.kafka.bootstrap-servers=localhost:9092
 
-# Elasticsearch Configuration
+# Elasticsearch
 elasticsearch.host=localhost
 elasticsearch.port=9200
+
+# MongoDB
+spring.data.mongodb.host=localhost
+spring.data.mongodb.port=27017
+spring.data.mongodb.database=my-database
 ```
+
