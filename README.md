@@ -1,15 +1,4 @@
-Here's your improved and fully formatted `README.md` file, ready for GitHub, with:
 
-* Proper Markdown formatting
-* Commands inside code blocks
-* Clear structure and spacing
-* Correct placement of configuration properties
-
-You can copy-paste this directly into your GitHub `README.md`:
-
----
-
-````markdown
 # Project Setup Guide – Spring Boot + Kafka + Elasticsearch + Kibana
 
 This guide explains how I’ve set up my development environment locally (without Docker) to run a Spring Boot application integrated with Kafka, Elasticsearch, and Kibana.
@@ -135,21 +124,4 @@ spring.kafka.bootstrap-servers=localhost:9092
 # Elasticsearch Configuration
 elasticsearch.host=localhost
 elasticsearch.port=9200
-```
-
----
-
-## Notes
-
-* No Docker is used; all services are started manually.
-* This setup is meant for local development and testing.
-
-```
-
-Let me know if you want to include:
-- Sample API calls
-- Kafka producer/consumer example
-- Sample Elasticsearch query in Kibana
-
-I can extend this further if needed.
 ```
