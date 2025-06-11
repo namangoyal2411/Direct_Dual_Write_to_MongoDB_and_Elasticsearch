@@ -26,7 +26,7 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "Entity9", groupId = "es-consumer-group")
+    @KafkaListener(topics = "Entity10", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent){
         try {
             EntityDTO entityDTO = entityEvent.getEntityDTO();
@@ -73,7 +73,7 @@ public class EntityConsumer {
     }
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq-entity9",failedEvent.getEntityDTO().getId(), failedEvent);
+            kafkaTemplate.send("dlq-entity10",failedEvent.getEntityDTO().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());

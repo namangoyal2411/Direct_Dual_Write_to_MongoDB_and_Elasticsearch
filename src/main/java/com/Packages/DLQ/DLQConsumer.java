@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 public class DLQConsumer {
 
@@ -25,7 +27,7 @@ public class DLQConsumer {
         this.dlqElasticRepository= dlqElasticRepository;
     }
 
-    @KafkaListener(topics = "dlq-entity9", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq-entity10", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent failedEvent) {
         int maxRetries = 5;
         int currentRetryCount = 0;
@@ -61,11 +63,19 @@ public class DLQConsumer {
                     return;
             }
             if (metadata != null) {
-                metadata.setEsSyncMillis(System.currentTimeMillis());
-                metadata.setSyncAttempt(currentRetryCount + 1);
-                metadata.setEsStatus("Success");
-                metadata.setDlqReason(null);
-                entityMetadataRepository.save(metadata);
+                EntityMetadata successMeta = EntityMetadata.builder()
+                        .metaId(UUID.randomUUID().toString())
+                        .entityId(metadata.getEntityId())
+                        .operation(metadata.getOperation())
+                        .operationSeq(metadata.getOperationSeq())
+                        .mongoWriteMillis(metadata.getMongoWriteMillis())
+                        .esSyncMillis(System.currentTimeMillis())
+                        .syncAttempt(currentRetryCount + 1)
+                        .mongoStatus(metadata.getMongoStatus())
+                        .esStatus("Success")
+                        .dlqReason(null)
+                        .build();
+                entityMetadataRepository.save(successMeta);
             }
             dlqElasticRepository.saveDLQEvent("entity_dlq", failedEvent);
         } catch (Exception e) {
@@ -75,19 +85,29 @@ public class DLQConsumer {
 
     private void handleProcessingFailure(EntityEvent failedEvent, int currentRetryCount, int maxRetries, Exception e) {
         EntityMetadata metadata = failedEvent.getMetadata();
-        if (metadata != null) {
-            metadata.setSyncAttempt(currentRetryCount + 1);
-            metadata.setEsSyncMillis(System.currentTimeMillis());
+
+        if (metadata != null) {String dlqReason;
             if (isInvalidDataError(e)) {
-                metadata.setEsStatus("failure");
-                metadata.setDlqReason("Invalid data: " + e.getMessage());
+                dlqReason = "Invalid data: " + e.getMessage();
             } else if (currentRetryCount >= maxRetries) {
-                metadata.setDlqReason("Max retries reached: " + e.getMessage());
+                dlqReason = "Max retries reached: " + e.getMessage();
             } else {
-                metadata.setEsStatus("failure");
-                metadata.setDlqReason("Failure due to: " + e.getMessage());
+                dlqReason = "Failure due to: " + e.getMessage();
             }
-            entityMetadataRepository.save(metadata);
+
+            EntityMetadata retryMetadata = EntityMetadata.builder()
+                    .metaId(UUID.randomUUID().toString())
+                    .entityId(metadata.getEntityId())
+                    .operation(metadata.getOperation())
+                    .operationSeq(metadata.getOperationSeq())
+                    .mongoWriteMillis(metadata.getMongoWriteMillis())
+                    .esSyncMillis(System.currentTimeMillis())
+                    .syncAttempt(currentRetryCount + 1)
+                    .mongoStatus(metadata.getMongoStatus())
+                    .esStatus("failure")
+                    .dlqReason(dlqReason)
+                    .build();
+            entityMetadataRepository.save(retryMetadata);
         }
     }
 
