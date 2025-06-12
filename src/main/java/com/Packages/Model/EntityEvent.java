@@ -16,4 +16,5 @@ public class EntityEvent {
     private String id;
     private String index;
     private String metadataId;
+    private long mongoWriteMillis;
 }

@@ -17,10 +17,11 @@ import java.time.LocalDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EntityDTO {
     @Id
-    String id ;
-    String name ;
+    String id;
+    String name;
     private LocalDateTime createTime;
     private LocalDateTime modifiedTime;
+
     public static EntityDTO fromEntity(Entity entity) {
         if (entity == null) return null;
         return EntityDTO.builder()

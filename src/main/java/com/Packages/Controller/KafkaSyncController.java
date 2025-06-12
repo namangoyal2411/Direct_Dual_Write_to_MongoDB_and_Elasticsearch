@@ -1,32 +1,31 @@
 package com.Packages.Controller;
 
 import com.Packages.DTO.EntityDTO;
-import com.Packages.Service.DirectDataTransferService;
+import com.Packages.Service.KafkaSyncService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/entity")
-public class DirectDataTransferController {
+@RequestMapping("/api/entity/kafka")
+public class KafkaSyncController {
     @Autowired
-    private DirectDataTransferService directDataTransferService;
-
+    private KafkaSyncService kafkaSyncService;
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)
     public EntityDTO createEntity(@RequestBody EntityDTO entityDTO) {
-        return directDataTransferService.createEntity(entityDTO);
+        return kafkaSyncService.createEntity(entityDTO);
     }
-
     @PutMapping("/update/{documentId}")
     @ResponseStatus(HttpStatus.CREATED)
     public EntityDTO updateEntity(@PathVariable String documentId, @RequestBody EntityDTO entityDTO) {
-        return directDataTransferService.updateEntity(documentId, entityDTO);
+        return kafkaSyncService.updateEntity(documentId, entityDTO);
     }
-
     @DeleteMapping("/delete/{documentId}")
     @ResponseStatus(HttpStatus.OK)
     public boolean deleteEntity(@PathVariable String documentId) {
-        return directDataTransferService.deleteEntity(documentId);
+        return kafkaSyncService.deleteEntity(documentId);
     }
+
+
 }

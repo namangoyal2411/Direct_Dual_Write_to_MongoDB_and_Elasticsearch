@@ -1,3 +1,4 @@
+
 package com.Packages.Repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
@@ -34,29 +35,6 @@ public class EntityMetadataRepository {
             e.printStackTrace();
         }
     }
-    public EntityMetadata getEntityMetaData(String entityId, String operation, long operationSeq) {
-        try {
-            SearchRequest.Builder requestBuilder = new SearchRequest.Builder();
-            requestBuilder.index("entity_metadata");
-            requestBuilder.query(q -> q.bool(b -> b
-                    .must(List.of(
-                            Query.of(q1 -> q1.term(t -> t.field("entityId").value(entityId))),
-                            Query.of(q2 -> q2.term(t -> t.field("operation").value(operation))),
-                            Query.of(q3 -> q3.term(t -> t.field("operationSeq").value(operationSeq)))
-                    ))
-            ));
-            requestBuilder.sort(s -> s.field(f -> f.field("syncAttempt").order(SortOrder.Desc)));
-            requestBuilder.size(1);
-
-            SearchResponse<EntityMetadata> response =
-                    elasticsearchClient.search(requestBuilder.build(), EntityMetadata.class);
-
-            return response.hits().hits().isEmpty() ? null : response.hits().hits().get(0).source();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
     public Long getLatestOperationSeq(String entityId) {
         try {
             SearchRequest.Builder searchBuilder = new SearchRequest.Builder();
@@ -86,32 +64,6 @@ public class EntityMetadataRepository {
             return 0L;
         }
     }
-    public boolean existsByEntityIdAndOperationAndOperationSeqAndSyncAttempt(
-            String entityId, String operation, long operationSeq, int syncAttempt) {
-        try {
-            SearchRequest request = new SearchRequest.Builder()
-                    .index("entity_metadata")
-                    .query(q -> q.bool(b -> b
-                            .must(List.of(
-                                    Query.of(q1 -> q1.term(t -> t.field("entityId.keyword").value(entityId))),
-                                    Query.of(q2 -> q2.term(t -> t.field("operation.keyword").value(operation))),
-                                    Query.of(q3 -> q3.term(t -> t.field("operationSeq").value(operationSeq))),
-                                    Query.of(q4 -> q4.term(t -> t.field("syncAttempt").value(syncAttempt)))
-                            ))
-                    ))
-                    .size(1)
-                    .build();
-
-            SearchResponse<EntityMetadata> response =
-                    elasticsearchClient.search(request, EntityMetadata.class);
-
-            return !response.hits().hits().isEmpty();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
     public EntityMetadata getById(String metaId) {
         try {
             GetRequest request = new GetRequest.Builder()
@@ -137,7 +89,4 @@ public class EntityMetadataRepository {
             e.printStackTrace();
         }
     }
-    }
-
-
-
+}

@@ -1,3 +1,4 @@
+
 package com.Packages.Kafka;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
@@ -28,7 +29,7 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "Entity101", groupId = "es-consumer-group")
+    @KafkaListener(topics = "Entity1500", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent){
         String metaId = entityEvent.getMetadataId();
         EntityMetadata metadata = entityMetadataRepository.getById(metaId);
@@ -59,10 +60,10 @@ public class EntityConsumer {
                     entityElasticRepository.deleteEntity(indexName, documentId);
                     break;
             }
-                metadata.setEsSyncMillis(System.currentTimeMillis());
-                metadata.setEsStatus("SUCCESS");
-                metadata.setSyncAttempt(1);
-                entityMetadataRepository.update(metaId, metadata);
+            metadata.setEsSyncMillis(System.currentTimeMillis());
+            metadata.setEsStatus("success");
+            metadata.setSyncAttempt(1);
+            entityMetadataRepository.update(metaId, metadata);
         }
         catch (Exception e) {
             System.err.println("Failed to save data in Elasticsearch"+e.getMessage());
@@ -70,7 +71,7 @@ public class EntityConsumer {
                 metadata.setFirstFailureTime(System.currentTimeMillis());
             }
             if (isInvalidDataError(e)) {
-                metadata.setEsStatus("FAILURE");
+                metadata.setEsStatus("failure");
                 metadata.setDlqReason("Invalid data: " + e.getMessage());
                 metadata.setSyncAttempt(1);
                 metadata.setEsSyncMillis(null);
@@ -78,7 +79,7 @@ public class EntityConsumer {
                 System.err.println("Not sending to DLQ due to bad data: " + e.getMessage());
                 return;
             }
-            metadata.setEsStatus("FAILURE");
+            metadata.setEsStatus("failure");
             metadata.setDlqReason("Initial sync failed: " + e.getMessage());
             metadata.setSyncAttempt(1);
             metadata.setEsSyncMillis(null);
@@ -88,7 +89,7 @@ public class EntityConsumer {
     }
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq-entity101",failedEvent.getEntity().getId(), failedEvent);
+            kafkaTemplate.send("dlq-entity1500",failedEvent.getEntity().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());
@@ -103,4 +104,4 @@ public class EntityConsumer {
                 msg.contains("illegal_argument");
     }
 
-    }
+}

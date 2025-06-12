@@ -10,6 +10,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -17,10 +18,11 @@ import java.time.LocalDateTime;
 @Document(collection = "Entity")
 public class Entity {
     @Id
-    String id ;
-    String name ;
-    LocalDateTime createTime ;
-    LocalDateTime modifiedTime ;
+    String id;
+    String name;
+    LocalDateTime createTime;
+    LocalDateTime modifiedTime;
+
     public static Entity fromDTO(EntityDTO dto) {
         return Entity.builder()
                 .id(dto.getId())

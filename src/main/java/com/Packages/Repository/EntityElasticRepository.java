@@ -9,27 +9,28 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 
 @Repository
-public class  EntityElasticRepository {
+public class EntityElasticRepository {
     private final ElasticsearchClient elasticsearchClient;
+
     public EntityElasticRepository(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }
 
-    public Entity createEntity(String indexName , Entity entity){
-      try {
-          IndexRequest<Entity> request =IndexRequest.of (i->i
-                                        .index(indexName)
-                                        .id(entity.getId())
-                                        .document(entity)
-          );
-      IndexResponse response = elasticsearchClient.index(request);
-      }
-      catch (Exception e) {
-          e.printStackTrace();
-      }
-      return entity;
+    public Entity createEntity(String indexName, Entity entity) {
+        try {
+            IndexRequest<Entity> request = IndexRequest.of(i -> i
+                    .index(indexName)
+                    .id(entity.getId())
+                    .document(entity)
+            );
+            IndexResponse response = elasticsearchClient.index(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return entity;
     }
-    public Entity getEntity(String indexName,String documentId) {
+
+    public Entity getEntity(String indexName, String documentId) {
         try {
             GetRequest getRequest = GetRequest.of(g -> g.index(indexName).id(documentId));
             GetResponse<Entity> response = elasticsearchClient.get(getRequest, Entity.class);
@@ -44,29 +45,29 @@ public class  EntityElasticRepository {
             return null;
         }
     }
-    public Entity updateEntity(String indexName, String documentId,Entity entity,LocalDateTime createTime){
+
+    public Entity updateEntity(String indexName, String documentId, Entity entity, LocalDateTime createTime) {
         try {
-            UpdateRequest<Entity,Entity> request =UpdateRequest.of (u->u
+            UpdateRequest<Entity, Entity> request = UpdateRequest.of(u -> u
                     .index(indexName)
                     .id(documentId)
                     .doc(entity)
                     .docAsUpsert(true)
             );
-            UpdateResponse<Entity> response = elasticsearchClient.update(request,Entity.class);
-        }
-        catch (Exception e) {
+            UpdateResponse<Entity> response = elasticsearchClient.update(request, Entity.class);
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return entity;
     }
-    public boolean deleteEntity(String indexName, String documentId){
+
+    public boolean deleteEntity(String indexName, String documentId) {
         try {
-            elasticsearchClient.delete(d->d.index(indexName).id(documentId));
+            elasticsearchClient.delete(d -> d.index(indexName).id(documentId));
             return true;
-        }
-        catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
-            return false ;
+            return false;
         }
     }
 

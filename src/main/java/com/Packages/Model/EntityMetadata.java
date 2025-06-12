@@ -13,7 +13,7 @@ import org.springframework.data.annotation.Id;
 public class EntityMetadata {
     @Id
     private String metaId;
-    private String entityId ;
+    private String entityId;
     private String operation;
     private Long operationSeq;
     private Long mongoWriteMillis;

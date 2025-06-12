@@ -23,21 +23,18 @@ public class DLQConsumer {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final EntityElasticRepository elasticRepository;
     private final EntityMetadataRepository metadataRepository;
-    private final DLQElasticRepository dlqElasticRepository;
     private final KafkaTemplate<String, EntityEvent> kafkaTemplate;
 
     @Autowired
     public DLQConsumer(EntityElasticRepository elasticRepository,
                        EntityMetadataRepository metadataRepository,
-                       DLQElasticRepository dlqElasticRepository,
                        KafkaTemplate<String, EntityEvent> kafkaTemplate) {
         this.elasticRepository = elasticRepository;
         this.metadataRepository = metadataRepository;
-        this.dlqElasticRepository = dlqElasticRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = "dlq-entity101", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq-entity1500", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
         String entityMetadataId = event.getMetadataId();
         EntityMetadata metadata = metadataRepository.getById(entityMetadataId);
@@ -59,7 +56,7 @@ public class DLQConsumer {
                 }
             }
             metadata.setSyncAttempt(nextRetry);
-            metadata.setEsStatus("SUCCESS");
+            metadata.setEsStatus("success");
             metadata.setEsSyncMillis(System.currentTimeMillis());
             metadata.setDlqReason(null);
             metadataRepository.update(metadata.getMetaId(),metadata);
@@ -78,19 +75,18 @@ public class DLQConsumer {
         }
 
         String reason;
-            reason = "Retry failed: " + ex.getMessage();
+        reason = "Retry failed: " + ex.getMessage();
 
 
         metadata.setSyncAttempt(nextRetry);
-        metadata.setEsStatus("FAILURE");
+        metadata.setEsStatus("failure");
         metadata.setEsSyncMillis(null);
         metadata.setDlqReason(reason);
         metadataRepository.update(metadata.getMetaId(), metadata);
-        long backoffMillis = Math.min((long) Math.pow(2, nextRetry) * 1000L, 10000L); // Max 10s
+        long backoffMillis = Math.min((long) Math.pow(2, nextRetry) * 1000L, 10000L);
         scheduler.schedule(() -> {
-            kafkaTemplate.send("dlq-entity101", metadata.getEntityId(), event);
+            kafkaTemplate.send("dlq-entity1500", metadata.getEntityId(), event);
             System.out.println("Requeued DLQ for retry " + nextRetry);
         }, backoffMillis, TimeUnit.MILLISECONDS);
     }
-    }
-
+}

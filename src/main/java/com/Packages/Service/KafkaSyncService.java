@@ -17,17 +17,18 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
-public class MongoKafkaElasticService {
+public class KafkaSyncService {
     EntityMongoRepository entityMongoRepository;
     EntityMetadataRepository entityMetadataRepository;
     @Autowired
-    public MongoKafkaElasticService(EntityMongoRepository entityMongoRepository,EntityMetadataRepository entityMetadataRepository) {
+    public KafkaSyncService(EntityMongoRepository entityMongoRepository,EntityMetadataRepository entityMetadataRepository) {
         this.entityMongoRepository = entityMongoRepository;
         this.entityMetadataRepository= entityMetadataRepository;
     }
     @Autowired
     private EntityProducer kafkaProducer;
-    public EntityDTO createEntity(EntityDTO entityDTO,String indexName){
+    public EntityDTO createEntity(EntityDTO entityDTO){
+        String indexName="entity";
         LocalDateTime localDateTime= LocalDateTime.now();
         long mongoWriteMillis = System.currentTimeMillis();
         Entity entity = Entity.builder().
@@ -45,16 +46,17 @@ public class MongoKafkaElasticService {
                 .mongoWriteMillis(mongoWriteMillis)
                 .esSyncMillis(null)
                 .syncAttempt(0)
-                .mongoStatus("Success")
-                .esStatus("PENDING")
+                .mongoStatus("success")
+                .esStatus("pending")
                 .dlqReason(null)
                 .build();
         entityMetadataRepository.save(entityMetadata);
-        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata.getMetaId());// remove entityMetadata
+        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata.getMetaId());
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
-    public EntityDTO updateEntity(String indexName,String documentId,EntityDTO entityDTO){
+    public EntityDTO updateEntity(String documentId,EntityDTO entityDTO){
+        String indexName="entity";
         long mongoWriteMillis = System.currentTimeMillis();
         Entity mongoEntity = entityMongoRepository
                 .getEntity(documentId)
@@ -78,8 +80,8 @@ public class MongoKafkaElasticService {
                 .mongoWriteMillis(mongoWriteMillis)
                 .esSyncMillis(null)
                 .syncAttempt(0)
-                .mongoStatus("Success")
-                .esStatus("PENDING")
+                .mongoStatus("success")
+                .esStatus("pending")
                 .dlqReason(null)
                 .build();
         entityMetadataRepository.save(entityMetadata);
@@ -88,7 +90,8 @@ public class MongoKafkaElasticService {
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
-    public boolean deleteEntity(String indexName,String documentId ){
+    public boolean deleteEntity(String documentId ){
+        String indexName="entity";
         if (entityMongoRepository.deleteEntity(documentId)) {
             Entity entity = Entity.builder().id(documentId).build();
             long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId);
@@ -101,8 +104,8 @@ public class MongoKafkaElasticService {
                     .mongoWriteMillis(System.currentTimeMillis())
                     .esSyncMillis(null)
                     .syncAttempt(0)
-                    .mongoStatus("Deleted")
-                    .esStatus("PENDING")
+                    .mongoStatus("success")
+                    .esStatus("pending")
                     .dlqReason(null)
                     .build();
             entityMetadataRepository.save(entityMetadata);
