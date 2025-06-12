@@ -11,9 +11,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EntityEvent {
-    private EntityDTO entityDTO;
+    private Entity entity;
     private String operation;
     private String id;
     private String index;
-    private EntityMetadata metadata;
+    private String metadataId;
 }

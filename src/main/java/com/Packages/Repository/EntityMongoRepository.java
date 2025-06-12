@@ -17,6 +17,7 @@ public class EntityMongoRepository {
     @Autowired
     private EntityProducer kafkaProducer;
     public Entity createEntity(Entity entity){
+
         mongoRepositoryInterface.save(entity);
         return entity;
     }

@@ -28,10 +28,15 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "Entity14", groupId = "es-consumer-group")
+    @KafkaListener(topics = "Entity101", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent){
+        String metaId = entityEvent.getMetadataId();
+        EntityMetadata metadata = entityMetadataRepository.getById(metaId);
+        if (metadata == null) {
+            return;
+        }
         try {
-            EntityDTO entityDTO = entityEvent.getEntityDTO();
+            Entity entity = entityEvent.getEntity();
             String operation = entityEvent.getOperation();
             String indexName = entityEvent.getIndex();
             String documentId = entityEvent.getId();
@@ -39,66 +44,63 @@ public class EntityConsumer {
                 case "create":
                     entityElasticRepository.createEntity(
                             indexName,
-                            Entity.fromDTO(entityDTO)
+                            entity
                     );
                     break;
                 case "update":
                     entityElasticRepository.updateEntity(
                             indexName,
                             documentId,
-                            Entity.fromDTO(entityDTO),
-                            entityDTO.getCreateTime()
+                            entity,
+                            entity.getCreateTime()
                     );
                     break;
                 case "delete":
                     entityElasticRepository.deleteEntity(indexName, documentId);
                     break;
             }
-            EntityMetadata entityMetadata = entityEvent.getMetadata();
-            if (entityMetadata != null) {
-                EntityMetadata successMeta = EntityMetadata.builder()
-                        .metaId(UUID.randomUUID().toString())
-                        .entityId(entityMetadata.getEntityId())
-                        .operation(entityMetadata.getOperation())
-                        .operationSeq(entityMetadata.getOperationSeq())
-                        .mongoWriteMillis(entityMetadata.getMongoWriteMillis())
-                        .esSyncMillis(System.currentTimeMillis())
-                        .syncAttempt(entityMetadata.getSyncAttempt() + 1)
-                        .mongoStatus(entityMetadata.getMongoStatus())
-                        .esStatus("SUCCESS")
-                        .dlqReason(null)
-                        .build();
-                entityMetadataRepository.save(successMeta);
-            }
+                metadata.setEsSyncMillis(System.currentTimeMillis());
+                metadata.setEsStatus("SUCCESS");
+                metadata.setSyncAttempt(1);
+                entityMetadataRepository.update(metaId, metadata);
         }
         catch (Exception e) {
             System.err.println("Failed to save data in Elasticsearch"+e.getMessage());
-            sendToDLQ(entityEvent, e);
-            if (entityEvent.getMetadata() != null) {
-                EntityMetadata originalMeta = entityEvent.getMetadata();
-                EntityMetadata failureMeta = EntityMetadata.builder()
-                        .metaId(UUID.randomUUID().toString())
-                        .entityId(originalMeta.getEntityId())
-                        .operation(originalMeta.getOperation())
-                        .operationSeq(originalMeta.getOperationSeq())
-                        .mongoWriteMillis(originalMeta.getMongoWriteMillis())
-                        .esSyncMillis(System.currentTimeMillis())
-                        .syncAttempt(originalMeta.getSyncAttempt() + 1)
-                        .mongoStatus(originalMeta.getMongoStatus())
-                        .esStatus("FAILURE")
-                        .dlqReason(e.getMessage())
-                        .build();
-                entityMetadataRepository.save(failureMeta);
+            if (metadata.getFirstFailureTime() == null) {
+                metadata.setFirstFailureTime(System.currentTimeMillis());
             }
-            throw new RuntimeException("Failed to sync to Elasticsearch", e);
+            if (isInvalidDataError(e)) {
+                metadata.setEsStatus("FAILURE");
+                metadata.setDlqReason("Invalid data: " + e.getMessage());
+                metadata.setSyncAttempt(1);
+                metadata.setEsSyncMillis(null);
+                entityMetadataRepository.update(metadata.getMetaId(), metadata);
+                System.err.println("Not sending to DLQ due to bad data: " + e.getMessage());
+                return;
+            }
+            metadata.setEsStatus("FAILURE");
+            metadata.setDlqReason("Initial sync failed: " + e.getMessage());
+            metadata.setSyncAttempt(1);
+            metadata.setEsSyncMillis(null);
+            entityMetadataRepository.update(metadata.getMetaId(), metadata);
+            sendToDLQ(entityEvent, e);
         }
     }
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq-entity14",failedEvent.getEntityDTO().getId(), failedEvent);
+            kafkaTemplate.send("dlq-entity101",failedEvent.getEntity().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());
         }
     }
+    private boolean isInvalidDataError(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) return false;
+        msg = msg.toLowerCase();
+        return msg.contains("mapper_parsing_exception") ||
+                msg.contains("validation") ||
+                msg.contains("illegal_argument");
+    }
+
     }

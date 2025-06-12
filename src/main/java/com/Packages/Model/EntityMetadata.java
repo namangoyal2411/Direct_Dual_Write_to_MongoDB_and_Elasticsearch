@@ -18,6 +18,7 @@ public class EntityMetadata {
     private Long operationSeq;
     private Long mongoWriteMillis;
     private Long esSyncMillis;
+    private Long firstFailureTime;
     private Integer syncAttempt;
     private String mongoStatus;
     private String esStatus;

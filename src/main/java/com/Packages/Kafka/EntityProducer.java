@@ -12,10 +12,10 @@ import java.util.Map;
 
 @Service
 public class EntityProducer {
-    private static final String topic = "Entity14";
+    private static final String topic = "Entity101";
     @Autowired
     private KafkaTemplate<String, EntityEvent> kafkaTemplate;
     public void sendToKafka(EntityEvent entityEvent) {
-        kafkaTemplate.send(topic, entityEvent.getEntityDTO().getId(), entityEvent);
+        kafkaTemplate.send(topic, entityEvent.getEntity().getId(), entityEvent);
     }
 }

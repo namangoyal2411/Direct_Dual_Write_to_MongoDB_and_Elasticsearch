@@ -21,15 +21,16 @@ public class DirectDataTransferService {
     EntityMongoRepository entityMongoRepository;
     EntityElasticRepository entityElasticRepository;
     EntityMetadataRepository entityMetadataRepository;
+
     @Autowired
-    public DirectDataTransferService(EntityMongoRepository entityMongoRepository, EntityElasticRepository entityElasticRepository,EntityMetadataRepository entityMetadataRepository) {
+    public DirectDataTransferService(EntityMongoRepository entityMongoRepository, EntityElasticRepository entityElasticRepository, EntityMetadataRepository entityMetadataRepository) {
         this.entityMongoRepository = entityMongoRepository;
         this.entityElasticRepository = entityElasticRepository;
-        this.entityMetadataRepository=entityMetadataRepository;
+        this.entityMetadataRepository = entityMetadataRepository;
     }
 
-    public EntityDTO createEntity(EntityDTO entityDTO,String indexName){
-        LocalDateTime localDateTime= LocalDateTime.now();
+    public EntityDTO createEntity(EntityDTO entityDTO, String indexName) {
+        LocalDateTime localDateTime = LocalDateTime.now();
         long mongoWriteMillis = System.currentTimeMillis();
         Entity entity = Entity.builder().
                 id(entityDTO.getId()).
@@ -55,20 +56,23 @@ public class DirectDataTransferService {
             entityElasticRepository.createEntity(indexName, entity);
             metadata.setEsStatus("success");
             metadata.setEsSyncMillis(System.currentTimeMillis());
+            return entityDTO;
         } catch (Exception e) {
             metadata.setEsStatus("failure");
             metadata.setDlqReason(e.getMessage());
-            e.printStackTrace();
+            throw e;
+        } finally {
+            entityMetadataRepository.save(metadata);
         }
-        entityMetadataRepository.save(metadata);
-        return entityDTO;
+
     }
-    public EntityDTO updateEntity(String indexName,String documentId,EntityDTO entityDTO){
+
+    public EntityDTO updateEntity(String indexName, String documentId, EntityDTO entityDTO) {
         Optional<Entity> mongoEntityOpt = entityMongoRepository.getEntity(documentId);
         LocalDateTime createTime;
         long mongoWriteMillis = System.currentTimeMillis();
         createTime = mongoEntityOpt.get().getCreateTime();
-        LocalDateTime localDateTime= LocalDateTime.now();
+        LocalDateTime localDateTime = LocalDateTime.now();
         Entity entity = Entity.builder().
                 id(documentId).
                 name(entityDTO.getName()).
@@ -90,7 +94,7 @@ public class DirectDataTransferService {
                 .dlqReason(null)
                 .build();
         try {
-            entityElasticRepository.updateEntity(indexName,documentId, entity,createTime);
+            entityElasticRepository.updateEntity(indexName, documentId, entity, createTime);
             metadata.setEsStatus("success");
             metadata.setEsSyncMillis(System.currentTimeMillis());
         } catch (Exception e) {
@@ -98,10 +102,11 @@ public class DirectDataTransferService {
             metadata.setDlqReason(e.getMessage());
             e.printStackTrace();
         }
-        entityElasticRepository.updateEntity(indexName,documentId,entity,createTime);
+        entityElasticRepository.updateEntity(indexName, documentId, entity, createTime);
         return entityDTO;
     }
-    public boolean deleteEntity(String indexName,String documentId ){
+
+    public boolean deleteEntity(String indexName, String documentId) {
         boolean mongoDeleted = entityMongoRepository.deleteEntity(documentId);
 
         EntityMetadata metadata = EntityMetadata.builder()
@@ -131,3 +136,4 @@ public class DirectDataTransferService {
         return mongoDeleted && esDeleted;
     }
 }
+// change try and catch to include finally also to save metadata

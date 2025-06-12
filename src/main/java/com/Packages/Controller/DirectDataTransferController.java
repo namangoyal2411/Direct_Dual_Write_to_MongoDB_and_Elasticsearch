@@ -26,6 +26,4 @@ public class DirectDataTransferController {
     public boolean deleteEntity(@RequestParam String indexName,@PathVariable String documentId){
         return directDataTransferService.deleteEntity(indexName,documentId);
     }
-
-
 }

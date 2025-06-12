@@ -50,8 +50,7 @@ public class MongoKafkaElasticService {
                 .dlqReason(null)
                 .build();
         entityMetadataRepository.save(entityMetadata);
-        EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEventmapper("create",kafkaEvent, kafkaEvent.getId(), indexName,entityMetadata);
+        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata.getMetaId());// remove entityMetadata
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
@@ -85,13 +84,13 @@ public class MongoKafkaElasticService {
                 .build();
         entityMetadataRepository.save(entityMetadata);
         EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEventmapper("update",kafkaEvent,documentId,indexName,entityMetadata);
+        EntityEvent entityEvent = EntityEventmapper("update",entity, entity.getId(), indexName,entityMetadata.getMetaId());
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
     public boolean deleteEntity(String indexName,String documentId ){
         if (entityMongoRepository.deleteEntity(documentId)) {
-            EntityDTO entityDTO = EntityDTO.builder().id(documentId).build();
+            Entity entity = Entity.builder().id(documentId).build();
             long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId);
             long operationSeq = previousOpSeq + 1;
             EntityMetadata entityMetadata = EntityMetadata.builder()
@@ -107,19 +106,19 @@ public class MongoKafkaElasticService {
                     .dlqReason(null)
                     .build();
             entityMetadataRepository.save(entityMetadata);
-            EntityEvent entityEvent = EntityEventmapper("delete",entityDTO,documentId,indexName,entityMetadata);
+            EntityEvent entityEvent = EntityEventmapper("delete",entity, entity.getId(), indexName,entityMetadata.getMetaId());
             kafkaProducer.sendToKafka(entityEvent);
             return true;
         }
         return false ;
     }
-    public EntityEvent EntityEventmapper(String operation,EntityDTO entityDTO, String documentId, String indexName,EntityMetadata entityMetadata){
+    public EntityEvent EntityEventmapper(String operation,Entity entity, String documentId, String indexName,String entityMetadataId){
         EntityEvent entityEvent= EntityEvent.builder()
-                .entityDTO(entityDTO)
+                .entity(entity)
                 .operation(operation)
                 .id(documentId)
                 .index(indexName)
-                .metadata(entityMetadata)
+                .metadataId(entityMetadataId)
                 .build();
         return entityEvent;
     }
