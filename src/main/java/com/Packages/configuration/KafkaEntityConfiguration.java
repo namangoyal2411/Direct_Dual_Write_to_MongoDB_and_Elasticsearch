@@ -1,11 +1,9 @@
-package com.Packages.Configuration;
+package com.Packages.configuration;
 
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Model.EntityEvent;
+import com.Packages.model.EntityEvent;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.springframework.boot.autoconfigure.kafka.DefaultKafkaProducerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;

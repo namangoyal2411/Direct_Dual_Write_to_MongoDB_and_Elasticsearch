@@ -1,19 +1,16 @@
-package com.Packages.Service;
+package com.Packages.service;
 
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Exception.EntityNotFoundException;
-import com.Packages.Model.Entity;
-import com.Packages.Model.EntityMetadata;
-import com.Packages.Repository.EntityElasticRepository;
-import com.Packages.Repository.EntityMetadataRepository;
-import com.Packages.Repository.EntityMongoRepository;
+import com.Packages.dto.EntityDTO;
+import com.Packages.exception.EntityNotFoundException;
+import com.Packages.model.Entity;
+import com.Packages.model.EntityMetadata;
+import com.Packages.repository.EntityElasticRepository;
+import com.Packages.repository.EntityMetadataRepository;
+import com.Packages.repository.EntityMongoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.Optional;
 import java.util.UUID;
 
 
@@ -29,7 +26,7 @@ public class DirectDataTransferService {
         this.entityElasticRepository = entityElasticRepository;
         this.entityMetadataRepository = entityMetadataRepository;
     }
-
+    String service = "Direct Data Transfer";
     public EntityDTO createEntity(EntityDTO entityDTO) {
         String indexName = "entity";
         LocalDateTime localDateTime = LocalDateTime.now();
@@ -41,11 +38,14 @@ public class DirectDataTransferService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.createEntity(entity);
+        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(entity.getId(),service);
+        long operationSeq = previousOpSeq + 1;
         EntityMetadata metadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
+                .approach("Direct Data Transfer")
                 .operation("create")
-                .operationSeq(1L)
+                .operationSeq(operationSeq)
                 .mongoWriteMillis(mongoWriteMillis)
                 .esSyncMillis(null)
                 .syncAttempt(1)
@@ -85,12 +85,14 @@ public class DirectDataTransferService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.updateEntity(entity);
-        entityMongoRepository.createEntity(entity);
+        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
+        long operationSeq = previousOpSeq + 1;
         EntityMetadata metadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
+                .approach("Direct Data Transfer")
                 .operation("update")
-                .operationSeq(1L)
+                .operationSeq(operationSeq)
                 .mongoWriteMillis(mongoWriteMillis)
                 .esSyncMillis(null)
                 .syncAttempt(1)
@@ -109,27 +111,28 @@ public class DirectDataTransferService {
         } finally {
             entityMetadataRepository.save(metadata);
         }
-        entityElasticRepository.updateEntity(indexName, documentId, entity, createTime);
         return entityDTO;
     }
     public boolean deleteEntity(String documentId) {
         boolean mongoDeleted=false ;
         boolean esDeleted=false;
         if (entityMongoRepository.deleteEntity(documentId)) {
-             mongoDeleted = entityMongoRepository.deleteEntity(documentId);
+            mongoDeleted=true;
             String indexName = "entity";
+            long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
+            long operationSeq = previousOpSeq + 1;
             EntityMetadata metadata = EntityMetadata.builder()
                     .metaId(UUID.randomUUID().toString())
                     .entityId(documentId)
+                    .approach("Direct Data Transfer")
                     .operation("delete")
-                    .operationSeq(1L)
+                    .operationSeq(operationSeq)
                     .mongoWriteMillis(System.currentTimeMillis())
                     .syncAttempt(1)
-                    .mongoStatus(mongoDeleted ? "success" : "not_found")
+                    .mongoStatus("success")
                     .esStatus("pending")
                     .dlqReason(null)
                     .build();
-            esDeleted = false;
             try {
                 esDeleted = entityElasticRepository.deleteEntity(indexName, documentId);
                 metadata.setEsSyncMillis(System.currentTimeMillis());

@@ -1,7 +1,7 @@
-package com.Packages.Model;
+package com.Packages.model;
 
 
-import com.Packages.DTO.EntityDTO;
+import com.Packages.dto.EntityDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

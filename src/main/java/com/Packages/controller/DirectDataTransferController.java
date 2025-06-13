@@ -1,7 +1,7 @@
-package com.Packages.Controller;
+package com.Packages.controller;
 
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Service.DirectDataTransferService;
+import com.Packages.dto.EntityDTO;
+import com.Packages.service.DirectDataTransferService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

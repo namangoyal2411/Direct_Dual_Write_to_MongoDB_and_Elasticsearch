@@ -1,4 +1,4 @@
-package com.Packages.Exception;
+package com.Packages.exception;
 
 public class EntityNotFoundException extends RuntimeException {
     public EntityNotFoundException(String id) {

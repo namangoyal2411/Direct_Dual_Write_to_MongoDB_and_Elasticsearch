@@ -1,17 +1,14 @@
 
-package com.Packages.Repository;
+package com.Packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Refresh;
 import co.elastic.clients.elasticsearch._types.SortOptions;
 import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import com.Packages.Model.Entity;
-import com.Packages.Model.EntityMetadata;
+import com.Packages.model.EntityMetadata;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
 
 @Repository
 public class EntityMetadataRepository {
@@ -27,6 +24,7 @@ public class EntityMetadataRepository {
                     .index("entity_metadata")
                     .id(entityMetadata.getMetaId())
                     .document(entityMetadata)
+                    .refresh(Refresh.WaitFor)
             );
             IndexResponse response=  elasticsearchClient.index(request);
         }
@@ -35,35 +33,50 @@ public class EntityMetadataRepository {
             e.printStackTrace();
         }
     }
-    public Long getLatestOperationSeq(String entityId) {
+    public Long getLatestOperationSeq(String entityId, String service) {
         try {
             SearchRequest.Builder searchBuilder = new SearchRequest.Builder();
             searchBuilder.index("entity_metadata");
-            searchBuilder.query(new Query.Builder()
-                    .term(tq -> tq
-                            .field("entityId")
-                            .value(entityId))
-                    .build());
-            searchBuilder.sort(new SortOptions.Builder()
-                    .field(fq -> fq
+            searchBuilder.query(q -> q
+                    .bool(b -> b
+                            .must(m1 -> m1
+                                    .term(t1 -> t1
+                                            .field("entityId.keyword")
+                                            .value(entityId)
+                                    )
+                            )
+                            .must(m2 -> m2
+                                    .term(t2 -> t2
+                                            .field("approach.keyword")
+                                            .value(service)
+                                    )
+                            )
+                    )
+            );
+            searchBuilder.sort(so -> so
+                    .field(f -> f
                             .field("operationSeq")
-                            .order(SortOrder.Desc))
-                    .build());
+                            .order(SortOrder.Desc)
+                    )
+            );
             searchBuilder.size(1);
 
-            SearchResponse<EntityMetadata> response =
-                    elasticsearchClient.search(searchBuilder.build(), EntityMetadata.class);
+            SearchResponse<EntityMetadata> response = elasticsearchClient.search(
+                    searchBuilder.build(),
+                    EntityMetadata.class
+            );
+
             if (!response.hits().hits().isEmpty()) {
                 return response.hits().hits().get(0).source().getOperationSeq();
             } else {
                 return 0L;
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             return 0L;
         }
     }
+
     public EntityMetadata getById(String metaId) {
         try {
             GetRequest request = new GetRequest.Builder()

@@ -1,7 +1,7 @@
-package com.Packages.Repository;
+package com.Packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.Packages.Model.Entity;
+import com.Packages.model.Entity;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -18,7 +18,7 @@ public class ControlledElasticRepository extends EntityElasticRepository {
 
     public ControlledElasticRepository(ElasticsearchClient elasticsearchClient) {
         super(elasticsearchClient);
-        this.successRate = 0.9;
+        this.successRate = 0.8;
         System.out.println("Using ControlledElasticRepository with successRate = " + successRate);
     }
 

@@ -1,17 +1,15 @@
-package com.Packages.DLQ;
+package com.Packages.dlq;
 
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Model.Entity;
-import com.Packages.Model.EntityEvent;
-import com.Packages.Model.EntityMetadata;
-import com.Packages.Repository.EntityElasticRepository;
-import com.Packages.Repository.EntityMetadataRepository;
+import com.Packages.model.Entity;
+import com.Packages.model.EntityEvent;
+import com.Packages.model.EntityMetadata;
+import com.Packages.repository.EntityElasticRepository;
+import com.Packages.repository.EntityMetadataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +32,7 @@ public class DLQConsumer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = "dlq-entity1500", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq-entity2600", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
         String entityMetadataId = event.getMetadataId();
         EntityMetadata metadata = metadataRepository.getById(entityMetadataId);
@@ -59,12 +57,13 @@ public class DLQConsumer {
             metadata.setEsStatus("success");
             metadata.setEsSyncMillis(System.currentTimeMillis());
             metadata.setDlqReason(null);
-            metadataRepository.update(metadata.getMetaId(),metadata);
+            metadataRepository.update(metadata.getMetaId(), metadata);
 
         } catch (Exception ex) {
             handleRetryFailure(event, metadata, nextRetry, ex);
         }
     }
+
     private void handleRetryFailure(EntityEvent event,
                                     EntityMetadata metadata,
                                     int nextRetry,
@@ -76,16 +75,14 @@ public class DLQConsumer {
 
         String reason;
         reason = "Retry failed: " + ex.getMessage();
-
-
         metadata.setSyncAttempt(nextRetry);
         metadata.setEsStatus("failure");
         metadata.setEsSyncMillis(null);
         metadata.setDlqReason(reason);
         metadataRepository.update(metadata.getMetaId(), metadata);
-        long backoffMillis = Math.min((long) Math.pow(2, nextRetry) * 1000L, 10000L);
+        long backoffMillis = Math.min((long) Math.pow(2, nextRetry) , 10000L);
         scheduler.schedule(() -> {
-            kafkaTemplate.send("dlq-entity1500", metadata.getEntityId(), event);
+            kafkaTemplate.send("dlq-entity2600", metadata.getEntityId(), event);
             System.out.println("Requeued DLQ for retry " + nextRetry);
         }, backoffMillis, TimeUnit.MILLISECONDS);
     }

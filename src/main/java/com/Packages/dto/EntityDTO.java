@@ -1,6 +1,6 @@
-package com.Packages.DTO;
+package com.Packages.dto;
 
-import com.Packages.Model.Entity;
+import com.Packages.model.Entity;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

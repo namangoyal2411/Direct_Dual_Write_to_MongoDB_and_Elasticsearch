@@ -1,20 +1,15 @@
 
-package com.Packages.Kafka;
+package com.Packages.kafka;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Model.Entity;
-import com.Packages.Model.EntityEvent;
-import com.Packages.Model.EntityMetadata;
-import com.Packages.Repository.EntityElasticRepository;
-import com.Packages.Repository.EntityMetadataRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.Packages.model.Entity;
+import com.Packages.model.EntityEvent;
+import com.Packages.model.EntityMetadata;
+import com.Packages.repository.EntityElasticRepository;
+import com.Packages.repository.EntityMetadataRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-
-import java.util.UUID;
 
 @Service
 public class EntityConsumer {
@@ -29,7 +24,7 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "Entity1500", groupId = "es-consumer-group")
+    @KafkaListener(topics = "Entity2600", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent){
         String metaId = entityEvent.getMetadataId();
         EntityMetadata metadata = entityMetadataRepository.getById(metaId);
@@ -89,7 +84,7 @@ public class EntityConsumer {
     }
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq-entity1500",failedEvent.getEntity().getId(), failedEvent);
+            kafkaTemplate.send("dlq-entity2600",failedEvent.getEntity().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());

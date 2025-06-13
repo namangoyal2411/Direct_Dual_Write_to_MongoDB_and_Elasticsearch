@@ -1,6 +1,6 @@
-package com.Packages.RepositoryInterface;
+package com.Packages.repositoryinterface;
 
-import com.Packages.Model.Entity;
+import com.Packages.model.Entity;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 

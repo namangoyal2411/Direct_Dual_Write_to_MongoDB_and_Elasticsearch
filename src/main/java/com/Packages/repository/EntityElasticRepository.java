@@ -1,9 +1,8 @@
-package com.Packages.Repository;
+package com.Packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.*;
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Model.Entity;
+import com.Packages.model.Entity;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;

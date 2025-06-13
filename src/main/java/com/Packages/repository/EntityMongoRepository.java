@@ -1,8 +1,8 @@
-package com.Packages.Repository;
+package com.Packages.repository;
 
-import com.Packages.Kafka.EntityProducer;
-import com.Packages.Model.Entity;
-import com.Packages.RepositoryInterface.MongoRepositoryInterface;
+import com.Packages.kafka.EntityProducer;
+import com.Packages.model.Entity;
+import com.Packages.repositoryinterface.MongoRepositoryInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 

@@ -1,6 +1,5 @@
-package com.Packages.Model;
+package com.Packages.model;
 
-import com.Packages.DTO.EntityDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,5 +15,4 @@ public class EntityEvent {
     private String id;
     private String index;
     private String metadataId;
-    private long mongoWriteMillis;
 }

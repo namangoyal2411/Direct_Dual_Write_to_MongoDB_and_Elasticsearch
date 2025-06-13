@@ -1,19 +1,17 @@
-package com.Packages.Service;
+package com.Packages.service;
 
-import com.Packages.DTO.EntityDTO;
-import com.Packages.Exception.EntityNotFoundException;
-import com.Packages.Kafka.EntityProducer;
-import com.Packages.Model.Entity;
-import com.Packages.Model.EntityEvent;
-import com.Packages.Model.EntityMetadata;
-import com.Packages.Repository.EntityMetadataRepository;
-import com.Packages.Repository.EntityMongoRepository;
+import com.Packages.dto.EntityDTO;
+import com.Packages.exception.EntityNotFoundException;
+import com.Packages.kafka.EntityProducer;
+import com.Packages.model.Entity;
+import com.Packages.model.EntityEvent;
+import com.Packages.model.EntityMetadata;
+import com.Packages.repository.EntityMetadataRepository;
+import com.Packages.repository.EntityMongoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -27,6 +25,7 @@ public class KafkaSyncService {
     }
     @Autowired
     private EntityProducer kafkaProducer;
+    String service = "Kafka Sync";
     public EntityDTO createEntity(EntityDTO entityDTO){
         String indexName="entity";
         LocalDateTime localDateTime= LocalDateTime.now();
@@ -38,11 +37,15 @@ public class KafkaSyncService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.createEntity(entity);
+        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(entity.getId(),service);
+        long operationSeq = previousOpSeq + 1;
+        System.out.println(operationSeq);
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
+                .approach("Kafka Sync")
                 .operation("create")
-                .operationSeq(1L)
+                .operationSeq(operationSeq)
                 .mongoWriteMillis(mongoWriteMillis)
                 .esSyncMillis(null)
                 .syncAttempt(0)
@@ -70,11 +73,13 @@ public class KafkaSyncService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.updateEntity(entity);
-        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId);
+        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
         long operationSeq = previousOpSeq + 1;
+        System.out.println(operationSeq);
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(documentId)
+                .approach("Kafka Sync")
                 .operation("update")
                 .operationSeq(operationSeq)
                 .mongoWriteMillis(mongoWriteMillis)
@@ -94,11 +99,12 @@ public class KafkaSyncService {
         String indexName="entity";
         if (entityMongoRepository.deleteEntity(documentId)) {
             Entity entity = Entity.builder().id(documentId).build();
-            long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId);
+            long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
             long operationSeq = previousOpSeq + 1;
             EntityMetadata entityMetadata = EntityMetadata.builder()
                     .metaId(UUID.randomUUID().toString())
                     .entityId(documentId)
+                    .approach("Kafka Sync")
                     .operation("delete")
                     .operationSeq(operationSeq)
                     .mongoWriteMillis(System.currentTimeMillis())

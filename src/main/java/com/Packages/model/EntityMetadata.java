@@ -1,4 +1,4 @@
-package com.Packages.Model;
+package com.Packages.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +14,7 @@ public class EntityMetadata {
     @Id
     private String metaId;
     private String entityId;
+    private String approach;
     private String operation;
     private Long operationSeq;
     private Long mongoWriteMillis;
@@ -23,4 +24,5 @@ public class EntityMetadata {
     private String mongoStatus;
     private String esStatus;
     private String dlqReason;
+
 }
