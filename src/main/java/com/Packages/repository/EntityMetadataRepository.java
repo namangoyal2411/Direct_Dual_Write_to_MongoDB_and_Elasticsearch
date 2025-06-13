@@ -24,7 +24,6 @@ public class EntityMetadataRepository {
                     .index("entity_metadata")
                     .id(entityMetadata.getMetaId())
                     .document(entityMetadata)
-                    .refresh(Refresh.WaitFor)
             );
             IndexResponse response=  elasticsearchClient.index(request);
         }
@@ -35,6 +34,7 @@ public class EntityMetadataRepository {
     }
     public Long getLatestOperationSeq(String entityId, String service) {
         try {
+            elasticsearchClient.indices().refresh(r -> r.index("entity_metadata"));
             SearchRequest.Builder searchBuilder = new SearchRequest.Builder();
             searchBuilder.index("entity_metadata");
             searchBuilder.query(q -> q
