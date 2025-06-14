@@ -32,7 +32,7 @@ public class DLQConsumer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = "dlq-entity2700", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq-entity3500", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
         String entityMetadataId = event.getMetadataId();
         EntityMetadata metadata = metadataRepository.getById(entityMetadataId);
@@ -82,7 +82,7 @@ public class DLQConsumer {
         metadataRepository.update(metadata.getMetaId(), metadata);
         long backoffMillis = Math.min((long) Math.pow(2, nextRetry) , 10000L);
         scheduler.schedule(() -> {
-            kafkaTemplate.send("dlq-entity2700", metadata.getEntityId(), event);
+            kafkaTemplate.send("dlq-entity3500", metadata.getEntityId(), event);
             System.out.println("Requeued DLQ for retry " + nextRetry);
         }, backoffMillis, TimeUnit.MILLISECONDS);
     }
