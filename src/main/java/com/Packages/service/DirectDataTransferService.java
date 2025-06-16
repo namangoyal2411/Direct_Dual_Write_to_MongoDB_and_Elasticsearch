@@ -38,8 +38,8 @@ public class DirectDataTransferService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.createEntity(entity);
-        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(entity.getId(),service);
-        long operationSeq = previousOpSeq + 1;
+        long operationSeq = entityMongoRepository.nextSequence(entity.getId());
+        entityDTO.setId(entity.getId());
         EntityMetadata metadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
@@ -89,8 +89,7 @@ public class DirectDataTransferService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.updateEntity(entity);
-        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
-        long operationSeq = previousOpSeq + 1;
+        long operationSeq = entityMongoRepository.nextSequence(documentId);
         EntityMetadata metadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
@@ -132,8 +131,7 @@ public class DirectDataTransferService {
         if (proceed) {
             mongoDeleted=true;
             String indexName = "entity";
-            long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
-            long operationSeq = previousOpSeq + 1;
+            long operationSeq = entityMongoRepository.nextSequence(documentId);
             EntityMetadata metadata = EntityMetadata.builder()
                     .metaId(UUID.randomUUID().toString())
                     .entityId(documentId)

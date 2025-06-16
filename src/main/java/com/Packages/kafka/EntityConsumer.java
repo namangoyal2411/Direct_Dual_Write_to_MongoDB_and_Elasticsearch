@@ -27,10 +27,10 @@ public class EntityConsumer {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = "entity8", groupId = "es-consumer-group")
+    @KafkaListener(topics = "entity35", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent) {
-        String metaId = entityEvent.getMetadataId();
-        EntityMetadata metadata = entityMetadataRepository.getById(metaId);
+      //  String metaId = entityEvent.getMetadataId();
+        EntityMetadata metadata = entityEvent.getEntityMetadata();
         try {
             Entity entity = entityEvent.getEntity();
             String operation = entityEvent.getOperation();
@@ -58,7 +58,8 @@ public class EntityConsumer {
             metadata.setEsSyncMillis(System.currentTimeMillis());
             metadata.setEsStatus("success");
             metadata.setSyncAttempt(1);
-            entityMetadataRepository.update(metaId, metadata);
+           // entityMetadataRepository.save(metadata);
+            entityMetadataRepository.update(metadata.getMetaId(), metadata);
         } catch (Exception e) {
             if (metadata.getFirstFailureTime() == null) {
                 metadata.setFirstFailureTime(System.currentTimeMillis());
@@ -75,21 +76,23 @@ public class EntityConsumer {
                 metadata.setDlqReason(reason);
                 metadata.setSyncAttempt(1);
                 metadata.setEsSyncMillis(null);
+               // entityMetadataRepository.save(metadata);
                 entityMetadataRepository.update(metadata.getMetaId(), metadata);
                 return;
             }
             metadata.setEsStatus("failure");
-            metadata.setDlqReason("Initial sync failed: " + e.getMessage());
+            metadata.setDlqReason(e.getMessage());
             metadata.setSyncAttempt(1);
             metadata.setEsSyncMillis(null);
-            entityMetadataRepository.update(metadata.getMetaId(), metadata);
+            //entityMetadataRepository.save(metadata);
+           entityMetadataRepository.update(metadata.getMetaId(), metadata);
             sendToDLQ(entityEvent, e);
         }
     }
 
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq8", failedEvent.getEntity().getId(), failedEvent);
+            kafkaTemplate.send("dlq35", failedEvent.getEntity().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());

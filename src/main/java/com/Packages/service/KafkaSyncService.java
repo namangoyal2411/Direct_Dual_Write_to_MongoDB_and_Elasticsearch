@@ -37,8 +37,8 @@ public class KafkaSyncService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.createEntity(entity);
-        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(entity.getId(),service);
-        long operationSeq = previousOpSeq + 1;
+        long operationSeq = entityMongoRepository.nextSequence(entity.getId());
+        entityDTO.setId(entity.getId());
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
@@ -53,7 +53,7 @@ public class KafkaSyncService {
                 .dlqReason(null)
                 .build();
         entityMetadataRepository.save(entityMetadata);
-        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata.getMetaId());
+        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
@@ -72,9 +72,8 @@ public class KafkaSyncService {
                 modifiedTime(localDateTime).
                 build();
         entityMongoRepository.updateEntity(entity);
-        long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
-        long operationSeq = previousOpSeq + 1;
-        System.out.println(operationSeq);
+        long operationSeq = entityMongoRepository.nextSequence(documentId);
+        //System.out.println(operationSeq);
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(documentId)
@@ -90,7 +89,7 @@ public class KafkaSyncService {
                 .build();
         entityMetadataRepository.save(entityMetadata);
         EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
-        EntityEvent entityEvent = EntityEventmapper("update",entity, entity.getId(), indexName,entityMetadata.getMetaId());
+        EntityEvent entityEvent = EntityEventmapper("update",entity, entity.getId(), indexName,entityMetadata);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;
     }
@@ -100,8 +99,7 @@ public class KafkaSyncService {
         boolean proceed=entityMongoRepository.deleteEntity(documentId);
         if (proceed) {
             Entity entity = Entity.builder().id(documentId).build();
-            long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
-            long operationSeq = previousOpSeq + 1;
+            long operationSeq = entityMongoRepository.nextSequence(documentId);
             EntityMetadata entityMetadata = EntityMetadata.builder()
                     .metaId(UUID.randomUUID().toString())
                     .entityId(documentId)
@@ -116,19 +114,19 @@ public class KafkaSyncService {
                     .dlqReason(null)
                     .build();
             entityMetadataRepository.save(entityMetadata);
-            EntityEvent entityEvent = EntityEventmapper("delete",entity, entity.getId(), indexName,entityMetadata.getMetaId());
+            EntityEvent entityEvent = EntityEventmapper("delete",entity, entity.getId(), indexName,entityMetadata);
             kafkaProducer.sendToKafka(entityEvent);
             return true;
         }
         return false ;
     }
-    public EntityEvent EntityEventmapper(String operation,Entity entity, String documentId, String indexName,String entityMetadataId){
+    public EntityEvent EntityEventmapper(String operation,Entity entity, String documentId, String indexName,EntityMetadata metadata){
         EntityEvent entityEvent= EntityEvent.builder()
                 .entity(entity)
                 .operation(operation)
                 .id(documentId)
                 .index(indexName)
-                .metadataId(entityMetadataId)
+                .entityMetadata(metadata)
                 .build();
         return entityEvent;
     }

@@ -28,10 +28,10 @@ public class DLQConsumer {
         this.metadataRepository = metadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "dlq8", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq35", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
-        String entityMetadataId = event.getMetadataId();
-        EntityMetadata metadata = metadataRepository.getById(entityMetadataId);
+        //String entityMetadataId = event.getMetadataId();
+        EntityMetadata metadata = event.getEntityMetadata();
         int currentRetry = metadata.getSyncAttempt();
         int nextRetry = currentRetry + 1;
         try {
@@ -51,6 +51,7 @@ public class DLQConsumer {
             metadata.setEsStatus("success");
             metadata.setEsSyncMillis(System.currentTimeMillis());
             metadata.setDlqReason(null);
+           // metadataRepository.save(metadata);
             metadataRepository.update(metadata.getMetaId(), metadata);
         } catch (Exception ex) {
             handleRetryFailure(event, metadata, nextRetry, ex);
@@ -64,15 +65,16 @@ public class DLQConsumer {
             return;
         }
         String reason;
-        reason = "Retry failed: " + ex.getMessage();
+        reason = ex.getMessage();
         metadata.setSyncAttempt(nextRetry);
         metadata.setEsStatus("failure");
         metadata.setEsSyncMillis(null);
         metadata.setDlqReason(reason);
+        //metadataRepository.save(metadata);
         metadataRepository.update(metadata.getMetaId(), metadata);
         long backoffMillis = Math.min((long) Math.pow(2, nextRetry), 10L);
         scheduler.schedule(() -> {
-            kafkaTemplate.send("dlq8", metadata.getEntityId(), event);
+            kafkaTemplate.send("dlq35", metadata.getEntityId(), event);
         }, backoffMillis, TimeUnit.MILLISECONDS);
     }
 }

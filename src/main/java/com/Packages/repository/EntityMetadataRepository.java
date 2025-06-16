@@ -17,7 +17,7 @@ public class EntityMetadataRepository {
     public EntityMetadataRepository(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }
-    public void save (EntityMetadata entityMetadata){
+    public void save(EntityMetadata entityMetadata){
         if(entityMetadata == null)
             return ;
         try {
@@ -32,49 +32,49 @@ public class EntityMetadataRepository {
             e.printStackTrace();
         }
     }
-    public Long getLatestOperationSeq(String entityId, String service) {
-        try {
-            elasticsearchClient.indices().refresh(r -> r.index("entity_metadata"));
-            SearchRequest.Builder searchBuilder = new SearchRequest.Builder();
-            searchBuilder.index("entity_metadata");
-            searchBuilder.query(q -> q
-                    .bool(b -> b
-                            .must(m1 -> m1
-                                    .term(t1 -> t1
-                                            .field("entityId.keyword")
-                                            .value(entityId)
-                                    )
-                            )
-                            .must(m2 -> m2
-                                    .term(t2 -> t2
-                                            .field("approach.keyword")
-                                            .value(service)
-                                    )
-                            )
-                    )
-            );
-            searchBuilder.sort(so -> so
-                    .field(f -> f
-                            .field("operationSeq")
-                            .order(SortOrder.Desc)
-                    )
-            );
-            searchBuilder.size(1);
-            SearchResponse<EntityMetadata> response = elasticsearchClient.search(
-                    searchBuilder.build(),
-                    EntityMetadata.class
-            );
-
-            if (!response.hits().hits().isEmpty()) {
-                return response.hits().hits().get(0).source().getOperationSeq();
-            } else {
-                return 0L;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return 0L;
-        }
-    }
+//    public Long getLatestOperationSeq(String entityId, String service) {
+//        try {
+//            elasticsearchClient.indices().refresh(r -> r.index("entity_metadata"));
+//            SearchRequest.Builder searchBuilder = new SearchRequest.Builder();
+//            searchBuilder.index("entity_metadata");
+//            searchBuilder.query(q -> q
+//                    .bool(b -> b
+//                            .must(m1 -> m1
+//                                    .term(t1 -> t1
+//                                            .field("entityId.keyword")
+//                                            .value(entityId)
+//                                    )
+//                            )
+//                            .must(m2 -> m2
+//                                    .term(t2 -> t2
+//                                            .field("approach.keyword")
+//                                            .value(service)
+//                                    )
+//                            )
+//                    )
+//            );
+//            searchBuilder.sort(so -> so
+//                    .field(f -> f
+//                            .field("operationSeq")
+//                            .order(SortOrder.Desc)
+//                    )
+//            );
+//            searchBuilder.size(1);
+//            SearchResponse<EntityMetadata> response = elasticsearchClient.search(
+//                    searchBuilder.build(),
+//                    EntityMetadata.class
+//            );
+//
+//            if (!response.hits().hits().isEmpty()) {
+//                return response.hits().hits().get(0).source().getOperationSeq();
+//            } else {
+//                return 0L;
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return 0L;
+//        }
+//    }
     public EntityMetadata getById(String metaId) {
         try {
             GetRequest request = new GetRequest.Builder()
