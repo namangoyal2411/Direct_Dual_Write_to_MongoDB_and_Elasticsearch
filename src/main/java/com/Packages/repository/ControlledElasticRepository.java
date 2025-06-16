@@ -1,6 +1,8 @@
 package com.Packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import co.elastic.clients.elasticsearch._types.ErrorResponse;
 import com.Packages.model.Entity;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
@@ -14,48 +16,39 @@ import java.util.Random;
 @Profile("test")
 public class ControlledElasticRepository extends EntityElasticRepository {
     private final double successRate =0.8;
-    private final double invalidRate   = 0.2;
+    private final double failureRate   = 0.2;
     private final Random random = new Random();
-
-
     public ControlledElasticRepository(ElasticsearchClient es) {
         super(es);
-        System.out.println("Using ControlledElasticRepository with successRate=" + successRate
-                + ", invalidRate=" + invalidRate);
     }
-    private void simulate(String operation) {
+    private void simulate(String opName) {
         double r = random.nextDouble();
         if (r < successRate) {
-            return;  // success
+            return;
         }
-        double frac = (r - successRate) / (1 - successRate);
-        if (frac < invalidRate) {
-            throw new IllegalArgumentException("Simulated invalid‐data failure"+operation);
+        double frac = random.nextDouble();
+        if (frac <0.2) {
+            ErrorResponse err = ErrorResponse.of(b -> b
+                    .status(400)
+                    .error(e -> e
+                            .reason("Simulated invalid‐data failure on " + opName)
+                    ));
+            throw new ElasticsearchException(opName, err);
         } else {
-            throw new RuntimeException("Simulated ES‐down failure"+operation);
+            throw new RuntimeException("Simulated ES-down failure on " + opName);
         }
     }
-
-    private void validate(Entity e) {
-        if (e.getId() == null || e.getName() == null || e.getName().isBlank()) {
-            throw new IllegalArgumentException("Invalid entity data");
-        }
-    }
-
     @Override
     public Entity createEntity(String indexName, Entity entity) {
-        validate(entity);
         simulate("create");
         return super.createEntity(indexName, entity);
     }
 
     @Override
     public Entity updateEntity(String indexName, String id, Entity entity, LocalDateTime ct) {
-        validate(entity);
         simulate("update");
         return super.updateEntity(indexName, id, entity, ct);
     }
-
     @Override
     public boolean deleteEntity(String indexName, String id) {
         simulate("delete");

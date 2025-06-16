@@ -18,10 +18,10 @@ import java.time.LocalDateTime;
 @Document(collection = "Entity")
 public class Entity {
     @Id
-    String id;
-    String name;
-    LocalDateTime createTime;
-    LocalDateTime modifiedTime;
+    private String id;
+    private String name;
+    private LocalDateTime createTime;
+    private LocalDateTime modifiedTime;
 
     public static Entity fromDTO(EntityDTO dto) {
         return Entity.builder()

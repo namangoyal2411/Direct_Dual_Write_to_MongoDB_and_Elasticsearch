@@ -1,5 +1,6 @@
 package com.Packages.service;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.Packages.dto.EntityDTO;
 import com.Packages.exception.EntityNotFoundException;
 import com.Packages.model.Entity;
@@ -19,7 +20,6 @@ public class DirectDataTransferService {
     EntityMongoRepository entityMongoRepository;
     EntityElasticRepository entityElasticRepository;
     EntityMetadataRepository entityMetadataRepository;
-
     @Autowired
     public DirectDataTransferService(EntityMongoRepository entityMongoRepository, EntityElasticRepository entityElasticRepository, EntityMetadataRepository entityMetadataRepository) {
         this.entityMongoRepository = entityMongoRepository;
@@ -28,9 +28,9 @@ public class DirectDataTransferService {
     }
     String service = "Direct Data Transfer";
     public EntityDTO createEntity(EntityDTO entityDTO) {
+        long mongoWriteMillis = System.currentTimeMillis();
         String indexName = "entity";
         LocalDateTime localDateTime = LocalDateTime.now();
-        long mongoWriteMillis = System.currentTimeMillis();
         Entity entity = Entity.builder().
                 id(entityDTO.getId()).
                 name(entityDTO.getName()).
@@ -53,7 +53,6 @@ public class DirectDataTransferService {
                 .esStatus("pending")
                 .dlqReason(null)
                 .build();
-
         try {
             entityElasticRepository.createEntity(indexName, entity);
             metadata.setEsStatus("success");
@@ -61,21 +60,26 @@ public class DirectDataTransferService {
             return entityDTO;
         } catch (Exception e) {
             metadata.setEsStatus("failure");
-            metadata.setDlqReason(e.getMessage());
+            String reason ;
+            if (e instanceof co.elastic.clients.elasticsearch._types.ElasticsearchException ee
+                    && ee.status() >= 400 && ee.status() < 500) {
+                reason = ee.error().reason();
+            } else {
+                reason = e.getMessage();
+            }
+            metadata.setDlqReason(reason);
             throw e;
         } finally {
             entityMetadataRepository.save(metadata);
         }
-
     }
-
     public EntityDTO updateEntity(String documentId, EntityDTO entityDTO) {
+        long mongoWriteMillis = System.currentTimeMillis();
         String indexName = "entity";
         Entity mongoEntity = entityMongoRepository
                 .getEntity(documentId)
                 .orElseThrow(() -> new EntityNotFoundException(documentId));
         LocalDateTime createTime;
-        long mongoWriteMillis = System.currentTimeMillis();
         createTime = mongoEntity.getCreateTime();
         LocalDateTime localDateTime = LocalDateTime.now();
         Entity entity = Entity.builder().
@@ -106,7 +110,14 @@ public class DirectDataTransferService {
             metadata.setEsSyncMillis(System.currentTimeMillis());
         } catch (Exception e) {
             metadata.setEsStatus("failure");
-            metadata.setDlqReason(e.getMessage());
+            String reason ;
+            if (e instanceof co.elastic.clients.elasticsearch._types.ElasticsearchException ee
+                    && ee.status() >= 400 && ee.status() < 500) {
+                reason = ee.error().reason();
+            } else {
+                reason = e.getMessage();
+            }
+            metadata.setDlqReason(reason);
             throw e;
         } finally {
             entityMetadataRepository.save(metadata);
@@ -114,9 +125,11 @@ public class DirectDataTransferService {
         return entityDTO;
     }
     public boolean deleteEntity(String documentId) {
+        long mongoWriteMillis = System.currentTimeMillis();
         boolean mongoDeleted=false ;
         boolean esDeleted=false;
-        if (entityMongoRepository.deleteEntity(documentId)) {
+        boolean proceed = entityMongoRepository.deleteEntity(documentId);
+        if (proceed) {
             mongoDeleted=true;
             String indexName = "entity";
             long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
@@ -127,7 +140,7 @@ public class DirectDataTransferService {
                     .approach("Direct Data Transfer")
                     .operation("delete")
                     .operationSeq(operationSeq)
-                    .mongoWriteMillis(System.currentTimeMillis())
+                    .mongoWriteMillis(mongoWriteMillis)
                     .syncAttempt(1)
                     .mongoStatus("success")
                     .esStatus("pending")
@@ -140,7 +153,14 @@ public class DirectDataTransferService {
             } catch (Exception e) {
                 metadata.setEsSyncMillis(System.currentTimeMillis());
                 metadata.setEsStatus("failure");
-                metadata.setDlqReason(e.getMessage());
+                String reason ;
+                if (e instanceof co.elastic.clients.elasticsearch._types.ElasticsearchException ee
+                        && ee.status() >= 400 && ee.status() < 500) {
+                    reason = ee.error().reason();
+                } else {
+                    reason = e.getMessage();
+                }
+                metadata.setDlqReason(reason);
                 throw e;
             } finally {
                 entityMetadataRepository.save(metadata);
@@ -148,6 +168,5 @@ public class DirectDataTransferService {
         }
         return mongoDeleted && esDeleted;
     }
-
 }
 

@@ -1,6 +1,7 @@
 
 package com.Packages.kafka;
 
+import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.Packages.model.Entity;
 import com.Packages.model.EntityEvent;
 import com.Packages.model.EntityMetadata;
@@ -16,6 +17,7 @@ public class EntityConsumer {
     private final EntityElasticRepository entityElasticRepository;
     private final EntityMetadataRepository entityMetadataRepository;
     private final KafkaTemplate<String, EntityEvent> kafkaTemplate;
+
     @Autowired
     public EntityConsumer(EntityElasticRepository entityElasticRepository,
                           EntityMetadataRepository entityMetadataRepository,
@@ -24,13 +26,11 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "Entity3500", groupId = "es-consumer-group")
-    public void Consume(EntityEvent entityEvent){
+
+    @KafkaListener(topics = "entity8", groupId = "es-consumer-group")
+    public void Consume(EntityEvent entityEvent) {
         String metaId = entityEvent.getMetadataId();
         EntityMetadata metadata = entityMetadataRepository.getById(metaId);
-        if (metadata == null) {
-            return;
-        }
         try {
             Entity entity = entityEvent.getEntity();
             String operation = entityEvent.getOperation();
@@ -59,19 +59,23 @@ public class EntityConsumer {
             metadata.setEsStatus("success");
             metadata.setSyncAttempt(1);
             entityMetadataRepository.update(metaId, metadata);
-        }
-        catch (Exception e) {
-            System.err.println("Failed to save data in Elasticsearch"+e.getMessage());
+        } catch (Exception e) {
             if (metadata.getFirstFailureTime() == null) {
                 metadata.setFirstFailureTime(System.currentTimeMillis());
             }
-            if (isInvalidDataError(e)) {
+            String reason;
+            if (e instanceof ElasticsearchException ee) {
+                reason = ee.error().reason();
+            } else {
+                reason = e.getMessage();
+            }
+            if (e instanceof ElasticsearchException ee
+                    && ee.status() >= 400 && ee.status() < 500) {
                 metadata.setEsStatus("failure");
-                metadata.setDlqReason("Invalid data: " + e.getMessage());
+                metadata.setDlqReason(reason);
                 metadata.setSyncAttempt(1);
                 metadata.setEsSyncMillis(null);
                 entityMetadataRepository.update(metadata.getMetaId(), metadata);
-                System.err.println("Not sending to DLQ due to bad data: " + e.getMessage());
                 return;
             }
             metadata.setEsStatus("failure");
@@ -82,21 +86,14 @@ public class EntityConsumer {
             sendToDLQ(entityEvent, e);
         }
     }
+
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq-entity3500",failedEvent.getEntity().getId(), failedEvent);
+            kafkaTemplate.send("dlq8", failedEvent.getEntity().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());
         }
-    }
-    private boolean isInvalidDataError(Exception e) {
-        String msg = e.getMessage();
-        if (msg == null) return false;
-        msg = msg.toLowerCase();
-        return msg.contains("mapper_parsing_exception") ||
-                msg.contains("validation") ||
-                msg.contains("illegal_argument");
     }
 
 }

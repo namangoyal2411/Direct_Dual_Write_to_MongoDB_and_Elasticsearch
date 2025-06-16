@@ -16,14 +16,11 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class DLQConsumer {
-
     private static final int MAX_RETRIES = 5;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final EntityElasticRepository elasticRepository;
     private final EntityMetadataRepository metadataRepository;
     private final KafkaTemplate<String, EntityEvent> kafkaTemplate;
-
-    @Autowired
     public DLQConsumer(EntityElasticRepository elasticRepository,
                        EntityMetadataRepository metadataRepository,
                        KafkaTemplate<String, EntityEvent> kafkaTemplate) {
@@ -31,12 +28,10 @@ public class DLQConsumer {
         this.metadataRepository = metadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-
-    @KafkaListener(topics = "dlq-entity3500", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq8", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
         String entityMetadataId = event.getMetadataId();
         EntityMetadata metadata = metadataRepository.getById(entityMetadataId);
-
         int currentRetry = metadata.getSyncAttempt();
         int nextRetry = currentRetry + 1;
         try {
@@ -49,7 +44,6 @@ public class DLQConsumer {
                 case "update" -> elasticRepository.updateEntity(idx, id, entity, entity.getCreateTime());
                 case "delete" -> elasticRepository.deleteEntity(idx, id);
                 default -> {
-                    System.err.println("Unsupported operation: " + op);
                     return;
                 }
             }
@@ -58,21 +52,17 @@ public class DLQConsumer {
             metadata.setEsSyncMillis(System.currentTimeMillis());
             metadata.setDlqReason(null);
             metadataRepository.update(metadata.getMetaId(), metadata);
-
         } catch (Exception ex) {
             handleRetryFailure(event, metadata, nextRetry, ex);
         }
     }
-
     private void handleRetryFailure(EntityEvent event,
                                     EntityMetadata metadata,
                                     int nextRetry,
                                     Exception ex) {
         if (nextRetry > MAX_RETRIES) {
-            System.err.println("Giving up retries for " + metadata.getEntityId());
             return;
         }
-
         String reason;
         reason = "Retry failed: " + ex.getMessage();
         metadata.setSyncAttempt(nextRetry);
@@ -80,10 +70,9 @@ public class DLQConsumer {
         metadata.setEsSyncMillis(null);
         metadata.setDlqReason(reason);
         metadataRepository.update(metadata.getMetaId(), metadata);
-        long backoffMillis = Math.min((long) Math.pow(2, nextRetry) , 10000L);
+        long backoffMillis = Math.min((long) Math.pow(2, nextRetry), 10L);
         scheduler.schedule(() -> {
-            kafkaTemplate.send("dlq-entity3500", metadata.getEntityId(), event);
-            System.out.println("Requeued DLQ for retry " + nextRetry);
+            kafkaTemplate.send("dlq8", metadata.getEntityId(), event);
         }, backoffMillis, TimeUnit.MILLISECONDS);
     }
 }

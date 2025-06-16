@@ -37,7 +37,6 @@ public class BulkEntityFlowIntegrationTest {
         int entityCount = 50;
         int maxUpdates   = 1;
         Random rand      = new Random();
-        Map<String,Integer> expectedSeq = new HashMap<>();
         for (int i = 0; i < entityCount; i++) {
             String id = UUID.randomUUID().toString();
             LocalDateTime now = LocalDateTime.now();
@@ -46,20 +45,16 @@ public class BulkEntityFlowIntegrationTest {
             String id1 = UUID.randomUUID().toString();
             EntityDTO dto1 = new EntityDTO(id1, "Name-"+i, now, now);
             restTemplate.postForEntity("/api/entity/create", dto1, EntityDTO.class);
-            int ops = 1;
             int updates = rand.nextInt(maxUpdates+1);
             for (int u = 1; u <= updates; u++) {
                 dto.setName("Name-"+i+"-v"+u);
                 restTemplate.put("/api/entity/kafka/update/{id}", dto, id);
                 restTemplate.put("/api/entity/update/{id}", dto1, id1);
-                ops++;
             }
             if (rand.nextBoolean()) {
                 restTemplate.delete("/api/entity/kafka/delete/{id}", id);
                 restTemplate.delete("/api/entity/delete/{id}", id1);
-                ops++;
             }
-            expectedSeq.put(id, ops);
         }
 
     }

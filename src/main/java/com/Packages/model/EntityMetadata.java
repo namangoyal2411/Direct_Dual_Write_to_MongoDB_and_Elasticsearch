@@ -24,5 +24,4 @@ public class EntityMetadata {
     private String mongoStatus;
     private String esStatus;
     private String dlqReason;
-
 }

@@ -11,30 +11,24 @@ import java.util.Optional;
 @Repository
 public class EntityMongoRepository {
     MongoRepositoryInterface mongoRepositoryInterface;
-
     public EntityMongoRepository(MongoRepositoryInterface mongoRepositoryInterface) {
         this.mongoRepositoryInterface = mongoRepositoryInterface;
     }
-
     @Autowired
     private EntityProducer kafkaProducer;
-
     public Entity createEntity(Entity entity) {
 
         mongoRepositoryInterface.save(entity);
         return entity;
     }
-
     public Optional<Entity> getEntity(String documentId) {
         Optional<Entity> entity = mongoRepositoryInterface.findById(documentId);
         return entity;
     }
-
     public Entity updateEntity(Entity entity) {
         mongoRepositoryInterface.save(entity);
         return entity;
     }
-
     public boolean deleteEntity(String documentId) {
         if (mongoRepositoryInterface.existsById(documentId)) {
             mongoRepositoryInterface.deleteById(documentId);

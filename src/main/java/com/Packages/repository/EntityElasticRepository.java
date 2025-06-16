@@ -1,8 +1,11 @@
 package com.Packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.indices.PutIndicesSettingsResponse;
 import com.Packages.model.Entity;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -14,7 +17,6 @@ public class EntityElasticRepository {
     public EntityElasticRepository(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }
-
     public Entity createEntity(String indexName, Entity entity) {
         try {
             IndexRequest<Entity> request = IndexRequest.of(i -> i
@@ -28,7 +30,6 @@ public class EntityElasticRepository {
         }
         return entity;
     }
-
     public Entity getEntity(String indexName, String documentId) {
         try {
             GetRequest getRequest = GetRequest.of(g -> g.index(indexName).id(documentId));
@@ -44,14 +45,12 @@ public class EntityElasticRepository {
             return null;
         }
     }
-
     public Entity updateEntity(String indexName, String documentId, Entity entity, LocalDateTime createTime) {
         try {
             UpdateRequest<Entity, Entity> request = UpdateRequest.of(u -> u
                     .index(indexName)
                     .id(documentId)
                     .doc(entity)
-                    .docAsUpsert(true)
             );
             UpdateResponse<Entity> response = elasticsearchClient.update(request, Entity.class);
         } catch (Exception e) {
@@ -59,7 +58,6 @@ public class EntityElasticRepository {
         }
         return entity;
     }
-
     public boolean deleteEntity(String indexName, String documentId) {
         try {
             elasticsearchClient.delete(d -> d.index(indexName).id(documentId));

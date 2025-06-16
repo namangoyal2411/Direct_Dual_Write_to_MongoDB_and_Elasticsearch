@@ -27,9 +27,9 @@ public class KafkaSyncService {
     private EntityProducer kafkaProducer;
     String service = "Kafka Sync";
     public EntityDTO createEntity(EntityDTO entityDTO){
+        long mongoWriteMillis = System.currentTimeMillis();
         String indexName="entity";
         LocalDateTime localDateTime= LocalDateTime.now();
-        long mongoWriteMillis = System.currentTimeMillis();
         Entity entity = Entity.builder().
                 id(entityDTO.getId()).
                 name(entityDTO.getName()).
@@ -39,7 +39,6 @@ public class KafkaSyncService {
         entityMongoRepository.createEntity(entity);
         long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(entity.getId(),service);
         long operationSeq = previousOpSeq + 1;
-        System.out.println(operationSeq);
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(entity.getId())
@@ -59,8 +58,8 @@ public class KafkaSyncService {
         return entityDTO;
     }
     public EntityDTO updateEntity(String documentId,EntityDTO entityDTO){
-        String indexName="entity";
         long mongoWriteMillis = System.currentTimeMillis();
+        String indexName="entity";
         Entity mongoEntity = entityMongoRepository
                 .getEntity(documentId)
                 .orElseThrow(() -> new EntityNotFoundException(documentId));
@@ -96,8 +95,10 @@ public class KafkaSyncService {
         return entityDTO;
     }
     public boolean deleteEntity(String documentId ){
+        long mongoWriteMillis = System.currentTimeMillis();
         String indexName="entity";
-        if (entityMongoRepository.deleteEntity(documentId)) {
+        boolean proceed=entityMongoRepository.deleteEntity(documentId);
+        if (proceed) {
             Entity entity = Entity.builder().id(documentId).build();
             long previousOpSeq = entityMetadataRepository.getLatestOperationSeq(documentId,service);
             long operationSeq = previousOpSeq + 1;
@@ -107,7 +108,7 @@ public class KafkaSyncService {
                     .approach("Kafka Sync")
                     .operation("delete")
                     .operationSeq(operationSeq)
-                    .mongoWriteMillis(System.currentTimeMillis())
+                    .mongoWriteMillis(mongoWriteMillis)
                     .esSyncMillis(null)
                     .syncAttempt(0)
                     .mongoStatus("success")

@@ -28,7 +28,6 @@ public class EntityMetadataRepository {
             );
             IndexResponse response=  elasticsearchClient.index(request);
         }
-
         catch (Exception e){
             e.printStackTrace();
         }
@@ -61,7 +60,6 @@ public class EntityMetadataRepository {
                     )
             );
             searchBuilder.size(1);
-
             SearchResponse<EntityMetadata> response = elasticsearchClient.search(
                     searchBuilder.build(),
                     EntityMetadata.class
@@ -77,7 +75,6 @@ public class EntityMetadataRepository {
             return 0L;
         }
     }
-
     public EntityMetadata getById(String metaId) {
         try {
             GetRequest request = new GetRequest.Builder()
