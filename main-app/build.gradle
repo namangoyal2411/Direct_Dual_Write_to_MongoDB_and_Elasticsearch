@@ -26,7 +26,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter:5.12.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
-
+springBoot { mainClass = 'com.Packages.MainApplication' }
 test {
     useJUnitPlatform()
 }
