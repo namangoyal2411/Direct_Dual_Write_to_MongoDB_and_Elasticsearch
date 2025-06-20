@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @Repository
 public class EntityElasticRepository {
     private final ElasticsearchClient elasticsearchClient;
-
     public EntityElasticRepository(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }

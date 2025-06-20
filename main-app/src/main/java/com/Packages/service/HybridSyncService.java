@@ -219,7 +219,7 @@ public class HybridSyncService {
 
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq81", failedEvent.getEntity().getId(), failedEvent);
+            kafkaTemplate.send("dlq91", failedEvent.getEntity().getId(), failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());
         }

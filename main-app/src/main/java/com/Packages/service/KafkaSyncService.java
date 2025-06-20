@@ -25,7 +25,6 @@ public class KafkaSyncService {
     }
     @Autowired
     private EntityProducer kafkaProducer;
-    String service = "Kafka Sync";
     public EntityDTO createEntity(EntityDTO entityDTO){
         long mongoWriteMillis = System.currentTimeMillis();
         String indexName="entity";
@@ -73,7 +72,6 @@ public class KafkaSyncService {
                 build();
         entityMongoRepository.updateEntity(entity);
         long operationSeq = entityMongoRepository.nextSequence(documentId);
-        //System.out.println(operationSeq);
         EntityMetadata entityMetadata = EntityMetadata.builder()
                 .metaId(UUID.randomUUID().toString())
                 .entityId(documentId)
@@ -88,7 +86,6 @@ public class KafkaSyncService {
                 .dlqReason(null)
                 .build();
         entityMetadataRepository.save(entityMetadata);
-        EntityDTO kafkaEvent = EntityDTO.fromEntity(entity);
         EntityEvent entityEvent = EntityEventmapper("update",entity, entity.getId(), indexName,entityMetadata);
         kafkaProducer.sendToKafka(entityEvent);
         return entityDTO;

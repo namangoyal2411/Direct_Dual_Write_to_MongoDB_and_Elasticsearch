@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class DLQConsumer {
-    public static final int MAX_RETRIES = 5;
+    public static final int maxRetries = 5;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final EntityElasticRepository elasticRepository;
     private final EntityMetadataRepository metadataRepository;
@@ -28,11 +28,8 @@ public class DLQConsumer {
         this.metadataRepository = metadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-    @KafkaListener(topics = "dlq81", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq91", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
-//        log.info("[DLQConsumer] got event id={} attempt={}",
-//                event.getId(),
-//                event.getEntityMetadata().getSyncAttempt());
         EntityMetadata metadata = event.getEntityMetadata();
         int currentRetry = metadata.getSyncAttempt();
         int nextRetry = currentRetry + 1;
@@ -53,7 +50,6 @@ public class DLQConsumer {
             metadata.setEsStatus("success");
             metadata.setEsSyncMillis(System.currentTimeMillis());
             metadata.setDlqReason(null);
-            // metadataRepository.save(metadata);
             metadataRepository.update(metadata.getMetaId(), metadata);
         } catch (Exception ex) {
             handleRetryFailure(event, metadata, nextRetry, ex);
@@ -78,7 +74,7 @@ public class DLQConsumer {
             metadataRepository.update(metadata.getMetaId(), metadata);
             return;
         }
-        if (nextRetry > MAX_RETRIES) {
+        if (nextRetry > maxRetries) {
             metadata.setSyncAttempt(nextRetry);
             metadata.setEsStatus("failure");
             metadata.setEsSyncMillis(null);
@@ -93,7 +89,7 @@ public class DLQConsumer {
         metadataRepository.update(metadata.getMetaId(), metadata);
         long backoffMillis = Math.min((long) Math.pow(2, nextRetry), 10L);
         scheduler.schedule(() -> {
-            kafkaTemplate.send("dlq81", metadata.getEntityId(), event);
+            kafkaTemplate.send("dlq91", metadata.getEntityId(), event);
         }, backoffMillis, TimeUnit.MILLISECONDS);
     }
 }

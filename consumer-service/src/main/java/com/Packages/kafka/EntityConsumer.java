@@ -25,12 +25,8 @@ public class EntityConsumer {
         this.entityMetadataRepository = entityMetadataRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
-
-    @KafkaListener(topics = "entity81", groupId = "es-consumer-group")
+    @KafkaListener(topics = "entity91", groupId = "es-consumer-group")
     public void Consume(EntityEvent entityEvent) {
-//        log.info("[EntityConsumer] got event id={} operation={}",
-//                entityEvent.getId(),
-//                entityEvent.getOperation());
         EntityMetadata metadata = entityEvent.getEntityMetadata();
         try {
             Entity entity = entityEvent.getEntity();
@@ -76,7 +72,6 @@ public class EntityConsumer {
                 metadata.setDlqReason(reason);
                 metadata.setSyncAttempt(1);
                 metadata.setEsSyncMillis(null);
-                // entityMetadataRepository.save(metadata);
                 entityMetadataRepository.update(metadata.getMetaId(), metadata);
                 return;
             }
@@ -91,7 +86,7 @@ public class EntityConsumer {
 
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
-            kafkaTemplate.send("dlq81", failedEvent.getEntity().getId(), failedEvent);
+            kafkaTemplate.send("dlq91", failedEvent.getEntity().getId(), failedEvent);
             System.out.println("Message sent to DLQ: " + failedEvent);
         } catch (Exception ex) {
             System.err.println("Failed to send to DLQ: " + ex.getMessage());

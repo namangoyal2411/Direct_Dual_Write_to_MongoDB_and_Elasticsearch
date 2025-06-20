@@ -15,11 +15,12 @@ import java.util.Random;
 @Primary
 @Profile("test")
 public class ControlledElasticRepository extends EntityElasticRepository {
-    private final double successRate =0.1;
+    private final double successRate =0.7;
     private final double failureRate   = 0.2;
     private final Random random = new Random();
     public ControlledElasticRepository(ElasticsearchClient es) {
         super(es);
+        //log.info(">>>  ControlledElasticRepository ACTIVE");
     }
     private void simulate(String opName) {
         double r = random.nextDouble();
@@ -27,7 +28,7 @@ public class ControlledElasticRepository extends EntityElasticRepository {
             return;
         }
         double frac = random.nextDouble();
-        if (frac <0.2) {
+        if (frac <failureRate) {
             ErrorResponse err = ErrorResponse.of(b -> b
                     .status(400)
                     .error(e -> e

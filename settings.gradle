@@ -1,3 +1,4 @@
 rootProject.name = 'ReliableAndResilientDataSyncBetweenMongoDBAndElasticsearch'
 include 'main-app'
 include 'consumer-service'
+include 'stream-service'

@@ -26,7 +26,6 @@ public class DirectDataTransferService {
         this.entityElasticRepository = entityElasticRepository;
         this.entityMetadataRepository = entityMetadataRepository;
     }
-    String service = "Direct Data Transfer";
     public EntityDTO createEntity(EntityDTO entityDTO) {
         long mongoWriteMillis = System.currentTimeMillis();
         String indexName = "entity";

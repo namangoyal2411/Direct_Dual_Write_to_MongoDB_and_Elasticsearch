@@ -22,13 +22,5 @@ public class Entity {
     private String name;
     private LocalDateTime createTime;
     private LocalDateTime modifiedTime;
-
-    public static Entity fromDTO(EntityDTO dto) {
-        return Entity.builder()
-                .id(dto.getId())
-                .name(dto.getName())
-                .createTime(dto.getCreateTime())
-                .modifiedTime(dto.getModifiedTime())
-                .build();
-    }
+    private String metadataId;
 }

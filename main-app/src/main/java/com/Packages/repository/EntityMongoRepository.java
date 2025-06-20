@@ -16,13 +16,13 @@ import java.util.Optional;
 @Repository
 public class EntityMongoRepository {
     private final MongoRepositoryInterface mongoRepositoryInterface;
-    private final MongoOperations       mongoOps;
+    private final MongoOperations mongoOps;
 
     @Autowired
     public EntityMongoRepository(MongoRepositoryInterface mongoRepositoryInterface,
                                  MongoOperations mongoOps) {
         this.mongoRepositoryInterface = mongoRepositoryInterface;
-        this.mongoOps                = mongoOps;
+        this.mongoOps = mongoOps;
     }
 
     public Entity createEntity(Entity entity) {
@@ -44,6 +44,7 @@ public class EntityMongoRepository {
         }
         return false;
     }
+
     public long nextSequence(String entityId) {
         Query q = Query.query(Criteria.where("_id").is(entityId));
         Update u = new Update().inc("seq", 1);
