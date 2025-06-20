@@ -36,7 +36,6 @@ public class ChangeStreamListenerService {
     private static final int MAX_RETRIES = 5;
     private static final String DB_NAME = "Datasync";
     private static final String COLL_NAME = "Entity";
-
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private final MongoClient mongoClient;
     private final EntityElasticRepository esRepo;
@@ -80,14 +79,13 @@ public class ChangeStreamListenerService {
                 .fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE);
         if (resumeToken != null) {
             stream = stream.resumeAfter(resumeToken);
-            log.info("Resuming change stream after token");
         }
 
         for (ChangeStreamDocument<Document> change : stream) {
             try {
                 processChange(change, 0);
             } catch (Exception e) {
-                log.error("Failed to process change; continuing", e);
+
             }
         }
     }
@@ -97,29 +95,13 @@ public class ChangeStreamListenerService {
         String id = change.getDocumentKey().getString("_id").getValue();
         Document post   = change.getFullDocument();
         Document pre    = change.getFullDocumentBeforeChange();
-
         String metaId;
         if ("delete".equals(op)) {
             metaId = (pre != null) ? pre.getString("metadataId") : null;
         } else {
             metaId = (post != null) ? post.getString("metadataId") : null;
         }
-        log.info("CS-EVENT op={}, id={}, metadataId={}", op, id, metaId);
         EntityMetadata meta = metadataRepo.getById(metaId);
-
-        boolean touchingDeleteRow =
-                ("update".equals(op) || "replace".equals(op))
-                        && "delete".equals(meta.getOperation());
-
-        if ( touchingDeleteRow) {
-            saveToken(change.getResumeToken());
-            return;
-        }
-//        if ("delete".equals(op)) {
-        // little bit doubt in this part
-//            System.out.println(meta.getEsStatus());
-//        }
-
         try {
             if ("delete".equals(op)) {
                 esRepo.deleteEntity("entity", id);
@@ -128,7 +110,6 @@ public class ChangeStreamListenerService {
                 if (!"delete".equals(meta.getOperation())) {
                     esRepo.updateEntity("entity", id, documentToEntity(post), null);
                 } else {
-                    log.info("Skipping synthetic patch for delete-meta {}", meta.getMetaId());
                     saveToken(change.getResumeToken());
                     return;
                 }
@@ -136,7 +117,6 @@ public class ChangeStreamListenerService {
             else if ("insert".equals(op)) {
                 esRepo.createEntity("entity", documentToEntity(post));
             } else {
-                log.warn("Skipping unsupported op {}", op);
                 return;
             }
             meta.setEsStatus("success");
@@ -145,27 +125,30 @@ public class ChangeStreamListenerService {
             meta.setDlqReason(null);
             metadataRepo.update(meta.getMetaId(), meta);
             saveToken(change.getResumeToken());
-        } catch (ElasticsearchException ee) {
-            handleEsException(ee, change, meta, attempts);
-        } catch (RuntimeException re) {
-            handleRuntimeException(re, change, meta, attempts);
+        } catch (Exception es) {
+            handleException(es, change, meta, attempts);
         }
     }
 
-    private void handleEsException(ElasticsearchException ee,
+    private void handleException(Exception ex,
                                    ChangeStreamDocument<Document> change,
                                    EntityMetadata meta,
                                    int attempts) {
-        int status = ee.status();
-        String reason = ee.error() != null ? ee.error().reason() : ee.getMessage();
-        if (status >= 400 && status < 500) {
+        String reason;
+        if (ex instanceof ElasticsearchException ee) {
+            reason = ee.error().reason();
+        } else {
+            reason = ex.getMessage();
+        }
+        if (ex instanceof ElasticsearchException ee
+                && ee.status() >= 400 && ee.status() < 500) {
             meta.setEsStatus("failure");
-            meta.setSyncAttempt(attempts + 1);
-            meta.setEsSyncMillis(null);
             meta.setDlqReason(reason);
+            meta.setSyncAttempt(1);
+            meta.setEsSyncMillis(null);
             metadataRepo.update(meta.getMetaId(), meta);
-            saveToken(change.getResumeToken());
-        } else if (attempts < MAX_RETRIES) {
+            return;
+        }else if (attempts < MAX_RETRIES) {
             scheduleRetry(change, attempts + 1);
         } else {
             meta.setEsStatus("failure");
@@ -177,21 +160,6 @@ public class ChangeStreamListenerService {
         }
     }
 
-    private void handleRuntimeException(RuntimeException re,
-                                        ChangeStreamDocument<Document> change,
-                                        EntityMetadata meta,
-                                        int attempts) {
-        if (attempts < MAX_RETRIES) {
-            scheduleRetry(change, attempts + 1);
-        } else {
-            meta.setEsStatus("failure");
-            meta.setSyncAttempt(attempts + 1);
-            meta.setEsSyncMillis(null);
-            meta.setDlqReason(re.getMessage());
-            metadataRepo.update(meta.getMetaId(), meta);
-            saveToken(change.getResumeToken());
-        }
-    }
 
     private void scheduleRetry(ChangeStreamDocument<Document> change, int attempts) {
         long delaySec = Math.min((1L << attempts), 10L);
