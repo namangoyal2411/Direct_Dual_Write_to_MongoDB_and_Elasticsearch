@@ -2,6 +2,7 @@ package com.Packages.controller;
 
 import com.Packages.dto.EntityDTO;
 import com.Packages.service.KafkaSyncService;
+import com.Packages.service.KafkaSyncServiceVersion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -10,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/entity/kafka")
 public class KafkaSyncController {
     @Autowired
-    private KafkaSyncService kafkaSyncService;
+    private KafkaSyncServiceVersion kafkaSyncService;
 
     @PostMapping("/create")
     @ResponseStatus(HttpStatus.CREATED)

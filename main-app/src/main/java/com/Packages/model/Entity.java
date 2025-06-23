@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -22,5 +23,6 @@ public class Entity {
     private String name;
     private LocalDateTime createTime;
     private LocalDateTime modifiedTime;
-    private String metadataId;
+    @Version
+    private Long version;
 }

@@ -4,6 +4,7 @@ import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.Packages.model.ChangeStreamState;
 import com.Packages.model.Entity;
 import com.Packages.model.EntityMetadata;
+import com.Packages.model.EntityMetadataversion;
 import com.Packages.repositoryinterface.ChangeStreamStateRepository;
 import com.Packages.repository.EntityElasticRepository;
 import com.Packages.repository.EntityMetadataRepository;
@@ -14,6 +15,7 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.mongodb.client.model.changestream.FullDocumentBeforeChange;
+import com.mongodb.client.model.changestream.OperationType;
 import org.bson.BsonDocument;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -63,7 +65,7 @@ public class ChangeStreamListenerService {
 
     @PreDestroy
     public void shutdown() {
-        scheduler.shutdownNow();
+        scheduler.shutdown();
     }
 
     public void startListener() {
@@ -71,6 +73,7 @@ public class ChangeStreamListenerService {
     }
 
     private void listenLoop() {
+
         MongoDatabase db = mongoClient.getDatabase(DB_NAME);
         MongoCollection<Document> coll = db.getCollection(COLL_NAME);
 
@@ -82,6 +85,7 @@ public class ChangeStreamListenerService {
         }
 
         for (ChangeStreamDocument<Document> change : stream) {
+
             try {
                 processChange(change, 0);
             } catch (Exception e) {
@@ -91,28 +95,38 @@ public class ChangeStreamListenerService {
     }
 
     private void processChange(ChangeStreamDocument<Document> change, int attempts) {
-        String op = change.getOperationType().getValue();
-        String id = change.getDocumentKey().getString("_id").getValue();
-        Document post   = change.getFullDocument();
-        Document pre    = change.getFullDocumentBeforeChange();
-        String metaId;
-        if ("delete".equals(op)) {
-            metaId = (pre != null) ? pre.getString("metadataId") : null;
-        } else {
-            metaId = (post != null) ? post.getString("metadataId") : null;
+        if (change.getOperationType() == null) {
+            return;
         }
-        EntityMetadata meta = metadataRepo.getById(metaId);
+        String op = change.getOperationType().getValue();
+        Document post = change.getFullDocument();
+        Document pre  = change.getFullDocumentBeforeChange();
+        Entity entity = documentToEntity(post != null ? post : pre);
+        String id = entity.getId();
+        long  version = entity.getVersion();
+        log.info(op);
+        if ("delete".equals(op)){
+            version++;}
+        String metaId = String.format("%s-%s%d", id, op, version);
+        EntityMetadata meta = EntityMetadata.builder()
+                .metaId(metaId)
+                .entityId(id)
+                .approach("Change Streamn")
+                .operation(op)
+                .operationSeq(version)
+                .mongoWriteMillis(System.currentTimeMillis())
+                .esSyncMillis(null)
+                .syncAttempt(0)
+                .mongoStatus("success")
+                .esStatus("pending")
+                .dlqReason(null)
+                .build();
         try {
             if ("delete".equals(op)) {
                 esRepo.deleteEntity("entity", id);
             }
             else if ("update".equals(op) || "replace".equals(op)) {
-                if (!"delete".equals(meta.getOperation())) {
                     esRepo.updateEntity("entity", id, documentToEntity(post), null);
-                } else {
-                    saveToken(change.getResumeToken());
-                    return;
-                }
             }
             else if ("insert".equals(op)) {
                 esRepo.createEntity("entity", documentToEntity(post));
@@ -192,7 +206,7 @@ public class ChangeStreamListenerService {
                 .modifiedTime(d.getDate("modifiedTime") == null ? null :
                         d.getDate("modifiedTime").toInstant()
                                 .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime())
-                .metadataId(d.getString("metadataId"))
+                .version(d.getLong("version"))
                 .build();
     }
 }

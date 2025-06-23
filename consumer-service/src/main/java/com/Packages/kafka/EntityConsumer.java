@@ -1,6 +1,5 @@
 
 package com.Packages.kafka;
-
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.Packages.model.Entity;
 import com.Packages.model.EntityEvent;
