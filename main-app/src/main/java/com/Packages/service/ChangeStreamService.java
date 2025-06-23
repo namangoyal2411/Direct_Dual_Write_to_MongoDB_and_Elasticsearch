@@ -30,90 +30,32 @@ public class ChangeStreamService {
     public EntityDTO createEntity(EntityDTO entityDTO) {
         long mongoWriteMillis = System.currentTimeMillis();
         String indexName = "entity";
-        String metadataId = UUID.randomUUID().toString();
+
         LocalDateTime localDateTime = LocalDateTime.now();
         Entity entity = Entity.builder()
                 .id(entityDTO.getId())
                 .name(entityDTO.getName())
                 .createTime(localDateTime)
                 .modifiedTime(localDateTime)
-                .metadataId(metadataId)
                 .build();
-        long operationSeq = entityMongoRepository.nextSequence(entity.getId());
-        EntityMetadata metadata = EntityMetadata.builder()
-                .metaId(metadataId)
-                .entityId(entity.getId())
-                .approach("ChangeStream")
-                .operation("create")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(mongoWriteMillis)
-                .esSyncMillis(null)
-                .syncAttempt(0)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .dlqReason(null)
-                .build();
-        entityMetadataRepository.save(metadata);
         entityMongoRepository.createEntity(entity);
         return entityDTO;
     }
 
     public EntityDTO updateEntity(String documentId, EntityDTO entityDTO) {
         long mongoWriteMillis = System.currentTimeMillis();
-        Entity mongoEntity = entityMongoRepository
-                .getEntity(documentId)
+        Entity existing = entityMongoRepository.getEntity(documentId)
                 .orElseThrow(() -> new EntityNotFoundException(documentId));
-        LocalDateTime createTime = mongoEntity.getCreateTime();
-        LocalDateTime localDateTime = LocalDateTime.now();
-        String metadataId = UUID.randomUUID().toString();
-        Entity entity = Entity.builder()
-                .id(documentId)
-                .name(entityDTO.getName())
-                .createTime(createTime)
-                .modifiedTime(localDateTime)
-                .metadataId(metadataId)
-                .build();
-        long operationSeq = entityMongoRepository.nextSequence(entity.getId());
-        EntityMetadata metadata = EntityMetadata.builder()
-                .metaId(metadataId)
-                .entityId(entity.getId())
-                .approach("ChangeStream")
-                .operation("update")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(mongoWriteMillis)
-                .esSyncMillis(null)
-                .syncAttempt(0)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .dlqReason(null)
-                .build();
-        entityMetadataRepository.save(metadata);
-        entityMongoRepository.updateEntity(entity);
+        existing.setName(entityDTO.getName());
+        existing.setModifiedTime(LocalDateTime.now());
+        Entity updatedEntity = entityMongoRepository.updateEntity(existing);
+        updatedEntity.getVersion();
         return entityDTO;
     }
     public boolean deleteEntity(String documentId) {
         long mongoWriteMillis = System.currentTimeMillis();
-        String metadataId = UUID.randomUUID().toString();
-        long operationSeq = entityMongoRepository.nextSequence(documentId);
-        EntityMetadata metadata = EntityMetadata.builder()
-                .metaId(metadataId)
-                .entityId(documentId)
-                .approach("ChangeStream")
-                .operation("delete")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(mongoWriteMillis)
-                .esSyncMillis(null)
-                .syncAttempt(0)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .dlqReason(null)
-                .build();
-        entityMetadataRepository.save(metadata);
-        Entity e = entityMongoRepository.getEntity(documentId)
+        Entity existing = entityMongoRepository.getEntity(documentId)
                 .orElseThrow(() -> new EntityNotFoundException(documentId));
-        e.setMetadataId(metadataId);
-        entityMongoRepository.updateEntity(e);
-
         boolean mongoDeleted = entityMongoRepository.deleteEntity(documentId);
         return mongoDeleted;
     }

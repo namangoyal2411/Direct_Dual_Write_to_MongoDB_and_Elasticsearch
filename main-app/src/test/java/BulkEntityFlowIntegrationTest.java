@@ -3,10 +3,12 @@ import com.Packages.dto.EntityDTO;
 import com.Packages.ReliableAndResilientDataSyncBetweenMongoDBAndElasticsearchApplication;
 import com.Packages.repository.EntityMetadataRepository;
 import org.awaitility.Awaitility;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
@@ -34,6 +36,15 @@ public class BulkEntityFlowIntegrationTest {
 
     @Autowired
     private EntityMetadataRepository metadataRepo;
+    @Autowired
+    MongoTemplate mongoTemplate;
+
+    @BeforeEach
+    void cleanDb() {
+        mongoTemplate.dropCollection("Entity");
+        mongoTemplate.dropCollection("EntityMetadata");
+        mongoTemplate.dropCollection("ChangeStreamState");
+    }
 
     @Test
     void bulkFlow_writesAllMetadata() {
@@ -54,13 +65,13 @@ public class BulkEntityFlowIntegrationTest {
             int updates = rand.nextInt(maxUpdates+1);
             for (int u = 1; u <= updates; u++) {
                 dto.setName("Name-"+i+"-v"+u);
-              //  restTemplate.put("/api/entity/kafka/update/{id}", dto, id);
-               // restTemplate.put("/api/entity/update/{id}", dto1, id1);
+                //  restTemplate.put("/api/entity/kafka/update/{id}", dto, id);
+                // restTemplate.put("/api/entity/update/{id}", dto1, id1);
                 restTemplate.put("/api/entity/stream/update/{id}", dto2, id2);
             }
             if (rand.nextBoolean()) {
-             //   restTemplate.delete("/api/entity/kafka/delete/{id}", id);
-               // restTemplate.delete("/api/entity/delete/{id}", id1);
+                //   restTemplate.delete("/api/entity/kafka/delete/{id}", id);
+                // restTemplate.delete("/api/entity/delete/{id}", id1);
                 restTemplate.delete("/api/entity/stream/delete/{id}", id2);
             }
         }

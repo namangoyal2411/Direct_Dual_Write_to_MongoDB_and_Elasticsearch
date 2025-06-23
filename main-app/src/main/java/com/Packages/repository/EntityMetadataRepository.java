@@ -11,6 +11,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import co.elastic.clients.elasticsearch.core.*;
 import com.Packages.model.Entity;
 import com.Packages.model.EntityMetadata;
+import com.Packages.model.EntityMetadataversion;
 import org.springframework.stereotype.Repository;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 @Repository
@@ -34,6 +35,21 @@ public class EntityMetadataRepository {
             e.printStackTrace();
         }
     }
+    public void saveversion(EntityMetadataversion entityMetadataversion){
+        if(entityMetadataversion == null)
+            return ;
+        try {
+            IndexRequest<EntityMetadataversion> request = IndexRequest.of(i -> i
+                    .index("entity_metadata")
+                    .id(entityMetadataversion.getMetaId())
+                    .document(entityMetadataversion)
+            );
+            IndexResponse response=  elasticsearchClient.index(request);
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+    }
     public EntityMetadata getById(String metaId) {
         try {
             GetRequest request = new GetRequest.Builder()
@@ -47,35 +63,18 @@ public class EntityMetadataRepository {
             return null;
         }
     }
-    public EntityMetadata findByEntityIdAndOperation(String entityId, String operation) {
+    public EntityMetadataversion getByIdversion(String metaId) {
         try {
-            SearchRequest req = SearchRequest.of(s -> s
+            GetRequest request = new GetRequest.Builder()
                     .index("entity_metadata")
-                    .query(q -> q
-                            .bool(b -> b
-                                    .must(m1 -> m1
-                                            .term(t -> t
-                                                    .field("entityId")
-                                                    .value(entityId)))
-                                    .must(m2 -> m2
-                                            .term(t -> t
-                                                    .field("operation")
-                                                    .value(operation)))
-                            )
-                    )
-                    .size(1)
-            );
-
-            SearchResponse<EntityMetadata> resp =
-                    elasticsearchClient.search(req, EntityMetadata.class);
-
-            if (!resp.hits().hits().isEmpty()) {
-                return resp.hits().hits().get(0).source();
-            }
+                    .id(metaId)
+                    .build();
+            GetResponse<EntityMetadataversion> response = elasticsearchClient.get(request, EntityMetadataversion.class);
+            return response.found() ? response.source() : null;
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
     public void update(String metaId, EntityMetadata updatedMeta) {
         try {
@@ -85,6 +84,18 @@ public class EntityMetadataRepository {
                     .doc(updatedMeta)
                     .build();
             elasticsearchClient.update(request, EntityMetadata.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    public void updateversion(String metaId, EntityMetadataversion updatedMetaversion) {
+        try {
+            UpdateRequest<EntityMetadataversion, EntityMetadataversion> request = new UpdateRequest.Builder<EntityMetadataversion, EntityMetadataversion>()
+                    .index("entity_metadata")
+                    .id(metaId)
+                    .doc(updatedMetaversion)
+                    .build();
+            elasticsearchClient.update(request, EntityMetadataversion.class);
         } catch (Exception e) {
             e.printStackTrace();
         }
