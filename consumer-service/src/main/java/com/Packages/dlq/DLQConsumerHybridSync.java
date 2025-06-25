@@ -15,15 +15,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class DLQConsumer {
+public class DLQConsumerHybridSync {
     public static final int maxRetries = 5;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final EntityElasticRepository elasticRepository;
     private final EntityMetadataRepository metadataRepository;
     private final KafkaTemplate<String, EntityEvent> kafkaTemplate;
-    public DLQConsumer(EntityElasticRepository elasticRepository,
-                       EntityMetadataRepository metadataRepository,
-                       KafkaTemplate<String, EntityEvent> kafkaTemplate) {
+    public DLQConsumerHybridSync(EntityElasticRepository elasticRepository,
+                                EntityMetadataRepository metadataRepository,
+                                KafkaTemplate<String, EntityEvent> kafkaTemplate) {
         this.elasticRepository = elasticRepository;
         this.metadataRepository = metadataRepository;
         this.kafkaTemplate = kafkaTemplate;

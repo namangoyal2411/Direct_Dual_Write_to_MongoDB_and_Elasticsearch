@@ -20,6 +20,7 @@ dependencies {
     implementation 'co.elastic.clients:elasticsearch-java:8.13.4'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 springBoot { mainClass = 'com.Packages.ConsumerServiceApplication' }
 bootJar {

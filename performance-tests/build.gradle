@@ -1,0 +1,48 @@
+/* ------------------------------------------------------------------
+ *  performance-tests/build.gradle   (module‐only)
+ * ------------------------------------------------------------------ */
+plugins {
+    id 'scala'                           // replace Java plugin
+    id 'io.gatling.gradle' version '3.9.5'
+}
+
+group   = 'com.packages'
+version = '1.0-SNAPSHOT'
+
+repositories { mavenCentral() }
+
+/* 1️⃣  — Let Gradle choose any *installed* JDK ≥ 21  */
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)   // ✅ works with 21,22…
+        // (no vendor restriction ⇒ any Azul, Temurin, Oracle … is fine)
+    }
+}
+
+/* 2️⃣  — Dependencies */
+dependencies {
+    // Scala standard library the simulations compile against
+    implementation  "org.scala-lang:scala-library:2.13.10"
+
+    // Gatling runtime
+    gatling  "io.gatling:gatling-app:3.9.5"
+    gatling  "io.gatling:gatling-http:3.9.5"
+}
+
+/* 3️⃣  — Tell Gradle/Gatling where the simulations live         */
+sourceSets {
+    gatling {
+        scala.srcDirs     = ['src/gatling/scala']        // <— your .scala files
+        resources.srcDirs = ['src/gatling/resources']    // <— feeders, etc.
+        // Put compiled classes where Gatling scans for them
+        output.classesDirs.setFrom(layout.buildDirectory.dir('classes/gatling/scala'))
+    }
+}
+
+/* 4️⃣  — Only run the one simulation you wrote                  */
+gatling {
+    simulations = { include 'com\\.packages\\.DirectDataTransferSimulation' }
+}
+
+/* 5️⃣  — Nothing fancy for tests                                */
+test { useJUnitPlatform() }

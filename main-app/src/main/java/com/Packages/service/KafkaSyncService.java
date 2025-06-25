@@ -1,130 +1,131 @@
-package com.Packages.service;
-
-import com.Packages.dto.EntityDTO;
-import com.Packages.exception.EntityNotFoundException;
-import com.Packages.kafka.EntityProducer;
-import com.Packages.model.Entity;
-import com.Packages.model.EntityEvent;
-import com.Packages.model.EntityMetadata;
-import com.Packages.repository.EntityMetadataRepository;
-import com.Packages.repository.EntityMongoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-@Service
-public class KafkaSyncService {
-    EntityMongoRepository entityMongoRepository;
-    EntityMetadataRepository entityMetadataRepository;
-    @Autowired
-    public KafkaSyncService(EntityMongoRepository entityMongoRepository,EntityMetadataRepository entityMetadataRepository) {
-        this.entityMongoRepository = entityMongoRepository;
-        this.entityMetadataRepository= entityMetadataRepository;
-    }
-    @Autowired
-    private EntityProducer kafkaProducer;
-    public EntityDTO createEntity(EntityDTO entityDTO){
-        long mongoWriteMillis = System.currentTimeMillis();
-        String indexName="entity";
-        LocalDateTime localDateTime= LocalDateTime.now();
-        Entity entity = Entity.builder().
-                id(entityDTO.getId()).
-                name(entityDTO.getName()).
-                createTime(localDateTime).
-                modifiedTime(localDateTime).
-                build();
-        entityMongoRepository.createEntity(entity);
-        long operationSeq = entityMongoRepository.nextSequence(entity.getId());
-        entityDTO.setId(entity.getId());
-        EntityMetadata entityMetadata = EntityMetadata.builder()
-                .metaId(UUID.randomUUID().toString())
-                .entityId(entity.getId())
-                .approach("Kafka Sync")
-                .operation("create")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(mongoWriteMillis)
-                .esSyncMillis(null)
-                .syncAttempt(0)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .dlqReason(null)
-                .build();
-        entityMetadataRepository.save(entityMetadata);
-        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata);
-        kafkaProducer.sendToKafka(entityEvent);
-        return entityDTO;
-    }
-    public EntityDTO updateEntity(String documentId,EntityDTO entityDTO){
-        long mongoWriteMillis = System.currentTimeMillis();
-        String indexName="entity";
-        Entity mongoEntity = entityMongoRepository
-                .getEntity(documentId)
-                .orElseThrow(() -> new EntityNotFoundException(documentId));
-        LocalDateTime createTime = mongoEntity.getCreateTime();
-        LocalDateTime localDateTime= LocalDateTime.now();
-        Entity entity = Entity.builder().
-                id(documentId).
-                name(entityDTO.getName()).
-                createTime(createTime).
-                modifiedTime(localDateTime).
-                build();
-        entityMongoRepository.updateEntity(entity);
-        long operationSeq = entityMongoRepository.nextSequence(documentId);
-        EntityMetadata entityMetadata = EntityMetadata.builder()
-                .metaId(UUID.randomUUID().toString())
-                .entityId(documentId)
-                .approach("Kafka Sync")
-                .operation("update")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(mongoWriteMillis)
-                .esSyncMillis(null)
-                .syncAttempt(0)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .dlqReason(null)
-                .build();
-        entityMetadataRepository.save(entityMetadata);
-        EntityEvent entityEvent = EntityEventmapper("update",entity, entity.getId(), indexName,entityMetadata);
-        kafkaProducer.sendToKafka(entityEvent);
-        return entityDTO;
-    }
-    public boolean deleteEntity(String documentId ){
-        long mongoWriteMillis = System.currentTimeMillis();
-        String indexName="entity";
-        boolean proceed=entityMongoRepository.deleteEntity(documentId);
-        if (proceed) {
-            Entity entity = Entity.builder().id(documentId).build();
-            long operationSeq = entityMongoRepository.nextSequence(documentId);
-            EntityMetadata entityMetadata = EntityMetadata.builder()
-                    .metaId(UUID.randomUUID().toString())
-                    .entityId(documentId)
-                    .approach("Kafka Sync")
-                    .operation("delete")
-                    .operationSeq(operationSeq)
-                    .mongoWriteMillis(mongoWriteMillis)
-                    .esSyncMillis(null)
-                    .syncAttempt(0)
-                    .mongoStatus("success")
-                    .esStatus("pending")
-                    .dlqReason(null)
-                    .build();
-            entityMetadataRepository.save(entityMetadata);
-            EntityEvent entityEvent = EntityEventmapper("delete",entity, entity.getId(), indexName,entityMetadata);
-            kafkaProducer.sendToKafka(entityEvent);
-            return true;
-        }
-        return false ;
-    }
-    public EntityEvent EntityEventmapper(String operation,Entity entity, String documentId, String indexName,EntityMetadata metadata){
-        EntityEvent entityEvent= EntityEvent.builder()
-                .entity(entity)
-                .operation(operation)
-                .id(documentId)
-                .index(indexName)
-                .entityMetadata(metadata)
-                .build();
-        return entityEvent;
-    }
-}
+//package com.Packages.service;
+//
+//import com.Packages.dto.EntityDTO;
+//import com.Packages.exception.EntityNotFoundException;
+//import com.Packages.kafka.EntityProducer;
+//import com.Packages.model.Entity;
+//import com.Packages.model.EntityEvent;
+//import com.Packages.model.EntityMetadata;
+//import com.Packages.repository.EntityMetadataRepository;
+//import com.Packages.repository.EntityMongoRepository;
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.stereotype.Service;
+//
+//import java.time.LocalDateTime;
+//import java.util.UUID;
+//
+//@Service
+//public class KafkaSyncService {
+//    EntityMongoRepository entityMongoRepository;
+//    EntityMetadataRepository entityMetadataRepository;
+//    @Autowired
+//    public KafkaSyncService(EntityMongoRepository entityMongoRepository,EntityMetadataRepository entityMetadataRepository) {
+//        this.entityMongoRepository = entityMongoRepository;
+//        this.entityMetadataRepository= entityMetadataRepository;
+//    }
+//    @Autowired
+//    private EntityProducer kafkaProducer;
+//    public EntityDTO createEntity(EntityDTO entityDTO){
+//        long mongoWriteMillis = System.currentTimeMillis();
+//        String indexName="entitykafkasync";
+//        LocalDateTime localDateTime= LocalDateTime.now();
+//        Entity EntityKafkaSync=  new EntityKafkaSync(
+//                dto.getId(),
+//                dto.getName(),
+//                now,
+//                now,
+//                null
+//        );
+//        entityMongoRepository.createEntity(entity);
+//        long operationSeq = entityMongoRepository.nextSequence(entity.getId());
+//        entityDTO.setId(entity.getId());
+//        EntityMetadata entityMetadata = EntityMetadata.builder()
+//                .metaId(UUID.randomUUID().toString())
+//                .entityId(entity.getId())
+//                .approach("Kafka Sync")
+//                .operation("create")
+//                .operationSeq(operationSeq)
+//                .mongoWriteMillis(mongoWriteMillis)
+//                .esSyncMillis(null)
+//                .syncAttempt(0)
+//                .mongoStatus("success")
+//                .esStatus("pending")
+//                .dlqReason(null)
+//                .build();
+//        entityMetadataRepository.save(entityMetadata);
+//        EntityEvent entityEvent = EntityEventmapper("create",entity, entity.getId(), indexName,entityMetadata);
+//        kafkaProducer.sendToKafka(entityEvent);
+//        return entityDTO;
+//    }
+//    public EntityDTO updateEntity(String documentId,EntityDTO entityDTO){
+//        long mongoWriteMillis = System.currentTimeMillis();
+//        String indexName="entitykafkasync";
+//        Entity mongoEntity = entityMongoRepository
+//                .getEntity(documentId)
+//                .orElseThrow(() -> new EntityNotFoundException(documentId));
+//        LocalDateTime createTime = mongoEntity.getCreateTime();
+//        LocalDateTime localDateTime= LocalDateTime.now();
+//        Entity entity = Entity.builder().
+//                id(documentId).
+//                name(entityDTO.getName()).
+//                createTime(createTime).
+//                modifiedTime(localDateTime).
+//                build();
+//        entityMongoRepository.updateEntity(entity);
+//        long operationSeq = entityMongoRepository.nextSequence(documentId);
+//        EntityMetadata entityMetadata = EntityMetadata.builder()
+//                .metaId(UUID.randomUUID().toString())
+//                .entityId(documentId)
+//                .approach("Kafka Sync")
+//                .operation("update")
+//                .operationSeq(operationSeq)
+//                .mongoWriteMillis(mongoWriteMillis)
+//                .esSyncMillis(null)
+//                .syncAttempt(0)
+//                .mongoStatus("success")
+//                .esStatus("pending")
+//                .dlqReason(null)
+//                .build();
+//        entityMetadataRepository.save(entityMetadata);
+//        EntityEvent entityEvent = EntityEventmapper("update",entity, entity.getId(), indexName,entityMetadata);
+//        kafkaProducer.sendToKafka(entityEvent);
+//        return entityDTO;
+//    }
+//    public boolean deleteEntity(String documentId ){
+//        long mongoWriteMillis = System.currentTimeMillis();
+//        String indexName="entitykafkasync";
+//        boolean proceed=entityMongoRepository.deleteEntity(documentId);
+//        if (proceed) {
+//            Entity entity = Entity.builder().id(documentId).build();
+//            long operationSeq = entityMongoRepository.nextSequence(documentId);
+//            EntityMetadata entityMetadata = EntityMetadata.builder()
+//                    .metaId(UUID.randomUUID().toString())
+//                    .entityId(documentId)
+//                    .approach("Kafka Sync")
+//                    .operation("delete")
+//                    .operationSeq(operationSeq)
+//                    .mongoWriteMillis(mongoWriteMillis)
+//                    .esSyncMillis(null)
+//                    .syncAttempt(0)
+//                    .mongoStatus("success")
+//                    .esStatus("pending")
+//                    .dlqReason(null)
+//                    .build();
+//            entityMetadataRepository.save(entityMetadata);
+//            EntityEvent entityEvent = EntityEventmapper("delete",entity, entity.getId(), indexName,entityMetadata);
+//            kafkaProducer.sendToKafka(entityEvent);
+//            return true;
+//        }
+//        return false ;
+//    }
+//    public EntityEvent EntityEventmapper(String operation,Entity entity, String documentId, String indexName,EntityMetadata metadata){
+//        EntityEvent entityEvent= EntityEvent.builder()
+//                .entity(entity)
+//                .operation(operation)
+//                .id(documentId)
+//                .index(indexName)
+//                .entityMetadata(metadata)
+//                .build();
+//        return entityEvent;
+//    }
+//}

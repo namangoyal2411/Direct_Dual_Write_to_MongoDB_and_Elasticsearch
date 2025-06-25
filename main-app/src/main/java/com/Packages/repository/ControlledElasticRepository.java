@@ -4,6 +4,8 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import co.elastic.clients.elasticsearch._types.ErrorResponse;
 import com.Packages.model.Entity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
@@ -19,9 +21,11 @@ public class ControlledElasticRepository extends EntityElasticRepository {
     private final double successRate =0.9;
     private final double failureRate   = 0.2;
     private final Random random = new Random();
+    private static final Logger log =
+            LoggerFactory.getLogger(ControlledElasticRepository.class);
     public ControlledElasticRepository(ElasticsearchClient es) {
         super(es);
-        //log.info(">>>  ControlledElasticRepository ACTIVE");
+        log.info(">>>  ControlledElasticRepository ACTIVE");
     }
     private void simulate(String opName) {
         double r = random.nextDouble();

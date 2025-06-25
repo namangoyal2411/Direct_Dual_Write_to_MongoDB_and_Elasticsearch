@@ -9,8 +9,10 @@ allprojects {
 }
 
 subprojects {
-	apply plugin: 'java'
-	apply plugin: 'io.spring.dependency-management'
+	if (project.name != 'performance-tests') {
+		apply plugin: 'java'
+		apply plugin: 'io.spring.dependency-management'
+	}
 
 	group   = 'com.approach_1'
 	version = '0.0.1-SNAPSHOT'

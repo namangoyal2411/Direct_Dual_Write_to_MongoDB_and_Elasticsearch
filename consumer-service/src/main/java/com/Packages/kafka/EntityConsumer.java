@@ -82,7 +82,7 @@ public class EntityConsumer {
             sendToDLQ(entityEvent, e);
         }
     }
-
+// take topic different for different approach like kafka or hybrid
     private void sendToDLQ(EntityEvent failedEvent, Exception e) {
         try {
             kafkaTemplate.send("dlq91", failedEvent.getEntity().getId(), failedEvent);

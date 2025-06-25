@@ -12,12 +12,14 @@ import co.elastic.clients.elasticsearch.core.*;
 import com.Packages.model.Entity;
 import com.Packages.model.EntityMetadata;
 import com.Packages.model.EntityMetadataversion;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 @Repository
 public class EntityMetadataRepository {
     private final ElasticsearchClient elasticsearchClient;
-    public EntityMetadataRepository(ElasticsearchClient elasticsearchClient) {
+    public EntityMetadataRepository( @Qualifier("metadataClient") ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }
     public void save(EntityMetadata entityMetadata){
@@ -82,6 +84,7 @@ public class EntityMetadataRepository {
                     .index("entity_metadata")
                     .id(metaId)
                     .doc(updatedMeta)
+                    .docAsUpsert(true)
                     .build();
             elasticsearchClient.update(request, EntityMetadata.class);
         } catch (Exception e) {

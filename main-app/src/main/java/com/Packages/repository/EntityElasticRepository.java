@@ -1,6 +1,7 @@
 package com.Packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.Result;
 import co.elastic.clients.elasticsearch._types.VersionType;
 import co.elastic.clients.elasticsearch.core.DeleteRequest;
 import co.elastic.clients.elasticsearch.core.DeleteResponse;
@@ -10,6 +11,7 @@ import co.elastic.clients.elasticsearch.core.UpdateRequest;
 import co.elastic.clients.elasticsearch.core.UpdateResponse;
 import com.Packages.model.Entity;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Repository;
 
 import java.io.IOException;
@@ -17,7 +19,7 @@ import java.time.LocalDateTime;
 
 @Repository
 public class EntityElasticRepository {
-    private final ElasticsearchClient client;
+    private final  ElasticsearchClient client;
 
     public EntityElasticRepository(ElasticsearchClient client) {
         this.client = client;
@@ -44,6 +46,7 @@ public class EntityElasticRepository {
                     .index(indexName)
                     .id(documentId)
                     .doc(entity)
+                    .docAsUpsert(true)
             );
             UpdateResponse<Entity> resp = client.update(req, Entity.class);
         } catch (Exception e) {
@@ -58,7 +61,8 @@ public class EntityElasticRepository {
                     .index(indexName)
                     .id(documentId)
             );
-            return resp.result().name().equalsIgnoreCase("Deleted");
+            Result r = resp.result();
+            return r == Result.Deleted  || r == Result.NotFound;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
