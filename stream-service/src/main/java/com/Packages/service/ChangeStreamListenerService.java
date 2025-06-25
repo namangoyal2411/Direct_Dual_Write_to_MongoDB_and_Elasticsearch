@@ -111,7 +111,7 @@ public class ChangeStreamListenerService {
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(id)
-                .approach("Change Streamn")
+                .approach("Change Stream")
                 .operation(op)
                 .operationSeq(version)
                 .mongoWriteMillis(System.currentTimeMillis())

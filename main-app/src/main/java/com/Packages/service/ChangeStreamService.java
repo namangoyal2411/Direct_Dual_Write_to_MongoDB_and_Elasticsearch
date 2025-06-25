@@ -30,7 +30,6 @@ public class ChangeStreamService {
     public EntityDTO createEntity(EntityDTO entityDTO) {
         long mongoWriteMillis = System.currentTimeMillis();
         String indexName = "entity";
-
         LocalDateTime localDateTime = LocalDateTime.now();
         Entity entity = Entity.builder()
                 .id(entityDTO.getId())
@@ -49,7 +48,6 @@ public class ChangeStreamService {
         existing.setName(entityDTO.getName());
         existing.setModifiedTime(LocalDateTime.now());
         Entity updatedEntity = entityMongoRepository.updateEntity(existing);
-        updatedEntity.getVersion();
         return entityDTO;
     }
     public boolean deleteEntity(String documentId) {
