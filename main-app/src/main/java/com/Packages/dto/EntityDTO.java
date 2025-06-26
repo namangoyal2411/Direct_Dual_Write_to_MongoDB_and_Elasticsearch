@@ -21,14 +21,4 @@ public class EntityDTO {
     String name;
     private LocalDateTime createTime;
     private LocalDateTime modifiedTime;
-
-    public static EntityDTO fromEntity(Entity entity) {
-        if (entity == null) return null;
-        return EntityDTO.builder()
-                .id(entity.getId())
-                .name(entity.getName())
-                .createTime(entity.getCreateTime())
-                .modifiedTime(entity.getModifiedTime())
-                .build();
-    }
 }

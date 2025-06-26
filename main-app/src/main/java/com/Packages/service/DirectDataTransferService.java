@@ -5,10 +5,9 @@ import com.Packages.dto.EntityDTO;
 import com.Packages.exception.EntityNotFoundException;
 import com.Packages.model.Entity;
 import com.Packages.model.EntityMetadata;
-import com.Packages.repository.EntityMongoRepository;
-import com.Packages.repositoryinterface.EntityDirectDataTransferRepository;
 import com.Packages.repository.EntityElasticRepository;
 import com.Packages.repository.EntityMetadataRepository;
+import com.Packages.repository.EntityMongoRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,10 +15,11 @@ import java.util.UUID;
 
 @Service
 public class DirectDataTransferService {
+    private static final String ES_INDEX = "entity";
+
     private final EntityMongoRepository mongoRepo;
-    private final EntityElasticRepository              esRepo;
-    private final EntityMetadataRepository             metaRepo;
-    private static final String ES_INDEX   = "entity";
+    private final EntityElasticRepository esRepo;
+    private final EntityMetadataRepository metaRepo;
 
     public DirectDataTransferService(
             EntityMongoRepository mongoRepo,
@@ -27,46 +27,26 @@ public class DirectDataTransferService {
             EntityMetadataRepository metaRepo
     ) {
         this.mongoRepo = mongoRepo;
-        this.esRepo    = esRepo;
-        this.metaRepo  = metaRepo;
+        this.esRepo = esRepo;
+        this.metaRepo = metaRepo;
     }
 
     public EntityDTO createEntity(EntityDTO dto) {
-        long writeTs     = System.currentTimeMillis();
         LocalDateTime now = LocalDateTime.now();
-        Entity e = new Entity(
-                dto.getId(),
-                dto.getName(),
-                now,
-                now,
-                null
-        );
+        Entity e = new Entity(dto.getId(), dto.getName(), now, now, null);
         e = mongoRepo.createEntity(e);
-        long operationSeq = e.getVersion();
-
         dto.setId(e.getId());
-        EntityMetadata meta = EntityMetadata.builder()
-                .metaId(UUID.randomUUID().toString())
-                .entityId(e.getId())
-                .approach("Direct Data Transfer")
-                .operation("create")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(writeTs)
-                .syncAttempt(1)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .build();
+        EntityMetadata meta = buildMetadata(e.getId(), "create", e.getVersion(),
+                System.currentTimeMillis());
         try {
             esRepo.createEntity(ES_INDEX, e);
             meta.setEsStatus("success");
             meta.setEsSyncMillis(System.currentTimeMillis());
             return dto;
         } catch (Exception ex) {
+            // failure path
+            String reason = extractReason(ex);
             meta.setEsStatus("failure");
-            String reason = (ex instanceof ElasticsearchException ee
-                    && ee.status() >= 400 && ee.status() < 500)
-                    ? ee.error().reason()
-                    : ex.getMessage();
             meta.setDlqReason(reason);
             throw ex;
         } finally {
@@ -75,76 +55,73 @@ public class DirectDataTransferService {
     }
 
     public EntityDTO updateEntity(String id, EntityDTO dto) {
-        long writeTs = System.currentTimeMillis();
         LocalDateTime now = LocalDateTime.now();
         Entity e = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
         e.setName(dto.getName());
         e.setModifiedTime(now);
         e = mongoRepo.updateEntity(e);
-        long operationSeq = e.getVersion();
-        EntityMetadata meta = EntityMetadata.builder()
-                .metaId(UUID.randomUUID().toString())
-                .entityId(id)
-                .approach("Direct Data Transfer")
-                .operation("update")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(writeTs)
-                .syncAttempt(1)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .build();
+        EntityMetadata meta = buildMetadata(id, "update", e.getVersion(),
+                System.currentTimeMillis());
         try {
             esRepo.updateEntity(ES_INDEX, id, e, e.getCreateTime());
             meta.setEsStatus("success");
             meta.setEsSyncMillis(System.currentTimeMillis());
+            return dto;
         } catch (Exception ex) {
+            String reason = extractReason(ex);
             meta.setEsStatus("failure");
-            String reason = (ex instanceof ElasticsearchException ee
-                    && ee.status() >= 400 && ee.status() < 500)
-                    ? ee.error().reason()
-                    : ex.getMessage();
             meta.setDlqReason(reason);
             throw ex;
         } finally {
             metaRepo.save(meta);
         }
-
-        return dto;
     }
 
     public boolean deleteEntity(String id) {
         long writeTs = System.currentTimeMillis();
         Entity e = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
-        long operationSeq = e.getVersion();
-        mongoRepo.deleteEntity(id);
-        EntityMetadata meta = EntityMetadata.builder()
-                .metaId(UUID.randomUUID().toString())
-                .entityId(id)
-                .approach("Direct Data Transfer")
-                .operation("delete")
-                .operationSeq(operationSeq)
-                .mongoWriteMillis(writeTs)
-                .syncAttempt(1)
-                .mongoStatus("success")
-                .esStatus("pending")
-                .build();
+        boolean deletedInMongo = mongoRepo.deleteEntity(id);
+        if (!deletedInMongo) return false;
+        EntityMetadata meta = buildMetadata(id, "delete", e.getVersion() + 1, writeTs);
         try {
-            boolean deleted = esRepo.deleteEntity(ES_INDEX, id);
-            meta.setEsStatus(deleted ? "success" : "not_found");
+            boolean deletedInEs = esRepo.deleteEntity(ES_INDEX, id);
+            meta.setEsStatus(deletedInEs ? "success" : "not_found");
             meta.setEsSyncMillis(System.currentTimeMillis());
-            return deleted;
+            return deletedInEs;
         } catch (Exception ex) {
+            String reason = extractReason(ex);
             meta.setEsStatus("failure");
-            String reason = (ex instanceof ElasticsearchException ee
-                    && ee.status() >= 400 && ee.status() < 500)
-                    ? ee.error().reason()
-                    : ex.getMessage();
             meta.setDlqReason(reason);
             throw ex;
         } finally {
             metaRepo.save(meta);
         }
+    }
+
+    private EntityMetadata buildMetadata(String entityId,
+                                         String operation,
+                                         long operationSeq,
+                                         long mongoWriteMillis) {
+        return EntityMetadata.builder()
+                .metaId(UUID.randomUUID().toString())
+                .entityId(entityId)
+                .approach("Direct Data Transfer")
+                .operation(operation)
+                .operationSeq(operationSeq)
+                .mongoWriteMillis(mongoWriteMillis)
+                .syncAttempt(1)
+                .mongoStatus("success")
+                .esStatus("pending")
+                .build();
+    }
+
+    private String extractReason(Exception ex) {
+        if (ex instanceof ElasticsearchException ee
+                && ee.status() >= 400 && ee.status() < 500) {
+            return ee.error().reason();
+        }
+        return ex.getMessage();
     }
 }

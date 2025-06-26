@@ -45,22 +45,22 @@ public class EntityMongoRepository {
         return false;
     }
 
-    public long nextSequence(String entityId) {
-        Query q = Query.query(Criteria.where("_id").is(entityId));
-        Update u = new Update().inc("seq", 1);
-        FindAndModifyOptions opts = FindAndModifyOptions.options()
-                .upsert(true)
-                .returnNew(true);
-
-        Document result = mongoOps.findAndModify(
-                q, u, opts,
-                Document.class,
-                "entity_op_seq"
-        );
-        if (result != null && result.containsKey("seq")) {
-            Number seqNum = result.get("seq", Number.class);
-            return (seqNum != null) ? seqNum.longValue() : 1L;
-        }
-        return 1L;
-    }
+//    public long nextSequence(String entityId) {
+//        Query q = Query.query(Criteria.where("_id").is(entityId));
+//        Update u = new Update().inc("seq", 1);
+//        FindAndModifyOptions opts = FindAndModifyOptions.options()
+//                .upsert(true)
+//                .returnNew(true);
+//
+//        Document result = mongoOps.findAndModify(
+//                q, u, opts,
+//                Document.class,
+//                "entity_op_seq"
+//        );
+//        if (result != null && result.containsKey("seq")) {
+//            Number seqNum = result.get("seq", Number.class);
+//            return (seqNum != null) ? seqNum.longValue() : 1L;
+//        }
+//        return 1L;
+//    }
 }

@@ -20,15 +20,12 @@ public class ElasticConfiguration {
             @Value("${es.entity.host:localhost}") String host,
             @Value("${es.entity.port:9200}") int port
     ) {
-        // low‐level RestClient
         RestClient restClient = RestClient.builder(
                 new HttpHost(host, port, "http")
         ).build();
         ObjectMapper objectMapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule());
         JacksonJsonpMapper jacksonMapper = new JacksonJsonpMapper(objectMapper);
-
-        // transport layer
         RestClientTransport transport = new RestClientTransport(
                 restClient, jacksonMapper
         );

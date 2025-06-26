@@ -1,3 +1,45 @@
+package com.Packages.service;
+
+import com.Packages.dto.EntityDTO;
+import com.Packages.exception.EntityNotFoundException;
+import com.Packages.model.Entity;
+import com.Packages.repository.EntityMongoRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+
+@Service
+public class ChangeStreamService {
+
+    private final EntityMongoRepository mongoRepo;
+
+    public ChangeStreamService(EntityMongoRepository mongoRepo) {
+        this.mongoRepo = mongoRepo;
+    }
+
+    public EntityDTO createEntity(EntityDTO dto) {
+        LocalDateTime now = LocalDateTime.now();
+        Entity entity = Entity.builder().id(dto.getId()).name(dto.getName()).createTime(now).modifiedTime(now).build();
+        mongoRepo.createEntity(entity);
+        dto.setId(entity.getId());
+        return dto;
+    }
+
+    public EntityDTO updateEntity(String id, EntityDTO dto) {
+        Entity entity = mongoRepo.getEntity(id).orElseThrow(() -> new EntityNotFoundException(id));
+        entity.setName(dto.getName());
+        entity.setModifiedTime(LocalDateTime.now());
+        mongoRepo.updateEntity(entity);
+        dto.setId(entity.getId());
+        return dto;
+    }
+
+    public boolean deleteEntity(String id) {
+        mongoRepo.getEntity(id).orElseThrow(() -> new EntityNotFoundException(id));
+        return mongoRepo.deleteEntity(id);
+    }
+}
+
 //package com.Packages.service;
 //
 //import com.Packages.dto.EntityDTO;
@@ -29,7 +71,7 @@
 //    }
 //    public EntityDTO createEntity(EntityDTO entityDTO) {
 //        long mongoWriteMillis = System.currentTimeMillis();
-//        String indexName = "entitychangestream";
+//        String indexName = "entity";
 //
 //        LocalDateTime localDateTime = LocalDateTime.now();
 //        Entity entity = Entity.builder()

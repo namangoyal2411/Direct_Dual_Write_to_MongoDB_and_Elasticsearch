@@ -19,25 +19,25 @@ class DirectDataTransferSimulation extends Simulation {
     .feed(feeder)
     .exec(
       http("Create")
-        .post("/api/entity/create")
+        .post("/api/entity/stream/create")
         .body(StringBody("""{"id":"#{id}","name":"#{name}"}""")).asJson
         .check(status.is(201))
     )
     .exec(
       http("Update1")
-        .put("/api/entity/update/#{id}")
+        .put("/api/entity/stream/update/#{id}")
         .body(StringBody("""{"id":"#{id}","name":"#{name}-upd1"}""")).asJson
         .check(status.is(201))
     )
     .exec(
       http("Update2")
-        .put("/api/entity/update/#{id}")
+        .put("/api/entity/stream/update/#{id}")
         .body(StringBody("""{"id":"#{id}","name":"#{name}-upd2"}""")).asJson
         .check(status.is(201))
     )
     .exec(
       http("Delete")
-        .delete("/api/entity/delete/#{id}")
+        .delete("/api/entity/stream/delete/#{id}")
         .check(status.is(200))
     )
 
