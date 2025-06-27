@@ -22,7 +22,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
-springBoot { mainClass = 'com.Packages.ConsumerServiceApplication' }
+springBoot { mainClass = 'com.packages.ConsumerServiceApplication' }
 bootJar {
     archiveBaseName = 'consumer-service'
 }
