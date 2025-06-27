@@ -35,7 +35,7 @@ public class EntityService {
 
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
-        Entity toSave = new Entity(ent.getId(), ent.getName(), now, now, null);
+        Entity toSave = new Entity(null, ent.getName(), now, now, null);
         long mongoWriteMillis = System.currentTimeMillis();
         Entity saved = mongoRepo.createEntity(toSave);
         try {
