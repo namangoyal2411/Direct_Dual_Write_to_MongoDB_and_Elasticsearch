@@ -33,11 +33,11 @@ public class EntityMetadataService {
         this.mongoRepo = mongoRepo;
     }
     public EntityMetadata createEntityMetadata(Entity entity,
-                                     String operation,
-                                     String status,
-                                     Long esWriteTime,
-                                     Long mongoWriteMillis,
-                                     String failureReason) {
+                                               String operation,
+                                               String status,
+                                               Long esWriteTime,
+                                               Long mongoWriteMillis,
+                                               String failureReason) {
         LocalDateTime modified = entity.getModifiedTime();
         long version = entity.getVersion();
         if ("delete".equals(operation))
