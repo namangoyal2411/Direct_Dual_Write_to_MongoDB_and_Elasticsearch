@@ -23,7 +23,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-springBoot { mainClass = 'com.Packages.listener.StreamServiceApplication' }
+springBoot { mainClass = 'com.packages.listener.StreamServiceApplication' }
 bootJar {
     archiveBaseName ='stream-service'
     archiveVersion  = '0.0.1-SNAPSHOT'
