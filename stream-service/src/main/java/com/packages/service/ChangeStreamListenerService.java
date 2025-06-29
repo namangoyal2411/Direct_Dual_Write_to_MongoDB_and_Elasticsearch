@@ -96,6 +96,7 @@ public class ChangeStreamListenerService {
     }
 
     public void processChange(ChangeStreamDocument<Document> change, int attempt) {
+        log.info("Checking attempt {}", attempt);
         String op        = change.getOperationType().getValue();
         Entity entity    = toEntity(change);
         long   mongoTs   = System.currentTimeMillis();
