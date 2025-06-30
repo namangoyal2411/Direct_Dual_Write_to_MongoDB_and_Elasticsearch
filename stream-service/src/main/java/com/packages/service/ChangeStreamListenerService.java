@@ -19,6 +19,8 @@ import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -37,7 +39,6 @@ public class ChangeStreamListenerService {
     private static final int MAX_RETRIES = 5;
     private static final String DB_NAME    = "Datasync";
     private static final String COLL_NAME  = "Entity";
-
     private final ScheduledExecutorService scheduler =
     Executors.newScheduledThreadPool(2);
     private final MongoClient                    mongoClient;
@@ -46,7 +47,7 @@ public class ChangeStreamListenerService {
     private final ChangeStreamStateRepository    tokenRepo;
     private volatile BsonDocument                resumeToken;
     private final EntityMetadataService entityMetadataService;
-
+   @Autowired
     public ChangeStreamListenerService(
             MongoClient mongoClient,
             EntityElasticRepository esRepo,

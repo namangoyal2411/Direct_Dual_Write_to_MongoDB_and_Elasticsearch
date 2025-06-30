@@ -5,7 +5,10 @@ import co.elastic.clients.transport.rest_client.RestClientTransport;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
+import org.apache.http.message.BasicHeader;
 import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -21,16 +24,23 @@ public class ElasticConfiguration {
             @Value("${es.entity.port}") int port
     ) {
         RestClient restClient = RestClient.builder(new HttpHost(host, port, "http"))
+                .setHttpClientConfigCallback(hcb ->
+                        hcb.disableConnectionState()
+                                .setKeepAliveStrategy((resp, ctx) -> 0)
+                )
+                .setDefaultHeaders(new Header[]{
+                        new BasicHeader(HttpHeaders.CONNECTION, "close")
+                })
                 .setRequestConfigCallback(cfg ->
-                        cfg.setConnectTimeout(1_000)
-                                .setSocketTimeout(1_000)
+                        cfg.setConnectTimeout(1000)
+                                .setSocketTimeout(1000)
                 )
                 .build();
-        ObjectMapper objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule());
-        JacksonJsonpMapper jacksonMapper = new JacksonJsonpMapper(objectMapper);
-        RestClientTransport transport = new RestClientTransport(restClient, jacksonMapper);
-        return new ElasticsearchClient(transport);
+
+        JacksonJsonpMapper mapper = new JacksonJsonpMapper(
+                new ObjectMapper().registerModule(new JavaTimeModule())
+        );
+        return new ElasticsearchClient(new RestClientTransport(restClient, mapper));
     }
 
     @Bean("metadataClient")
