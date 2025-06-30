@@ -8,12 +8,16 @@ import com.packages.repository.EntityElasticRepository;
 import com.packages.repository.EntityMetadataRepository;
 import com.packages.repository.EntityMongoRepository;
 import com.packages.util.EntityUtil;
+import org.elasticsearch.client.ResponseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.net.SocketTimeoutException;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
-
 @Service
 public class EntityService {
     private static final String ES_INDEX = "entity";
@@ -21,7 +25,7 @@ public class EntityService {
     private final EntityMongoRepository mongoRepo;
     private final EntityElasticRepository esRepo;
     private final EntityMetadataService entityMetadataService;
-
+    private static final Logger log = LoggerFactory.getLogger(EntityService.class);
     @Autowired
     public EntityService(
             EntityMongoRepository mongoRepo,
@@ -51,13 +55,41 @@ public class EntityService {
             );
             return saved;
         } catch (Exception ex) {
+            // normalize to lowercase (null-safe)
+            Throwable cause = ex;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String rootClass = cause.getClass().getSimpleName();
+            String msg       = cause.getMessage() == null
+                    ? ""
+                    : cause.getMessage().toLowerCase();
+
+            // 2) bucket by root exception type or message
+            String reason;
+            if ("ResponseException".equals(rootClass)
+                    || msg.contains("429")
+                    || msg.contains("too many requests")) {
+                reason = "HTTP429";
+            } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                    || msg.contains("connect timed out")) {
+                reason = "ConnectTimeout";
+            } else if ("SocketTimeoutException".equals(rootClass)
+                    || msg.contains("timeout on connection")
+                    || msg.contains("read timeout")) {
+                reason = "ReadTimeout";
+            } else {
+                // any other root cause (e.g. some other IO error)
+                reason = rootClass;
+            }
+
             entityMetadataService.createEntityMetadata(
                     saved,
                     "create",
                     "failure",
                     null,
                     mongoWriteMillis,
-                    ex.getMessage()
+                   reason
             );
             throw ex;
         }
@@ -81,14 +113,40 @@ public class EntityService {
                     null
             );
             return updated;
-        } catch (Exception ex) {
+        }catch (Exception ex) {
+            Throwable cause = ex;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String rootClass = cause.getClass().getSimpleName();
+            String msg       = cause.getMessage() == null
+                    ? ""
+                    : cause.getMessage().toLowerCase();
+
+            // 2) bucket by root exception type or message
+            String reason;
+            if ("ResponseException".equals(rootClass)
+                    || msg.contains("429")
+                    || msg.contains("too many requests")) {
+                reason = "HTTP429";
+            } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                    || msg.contains("connect timed out")) {
+                reason = "ConnectTimeout";
+            } else if ("SocketTimeoutException".equals(rootClass)
+                    || msg.contains("timeout on connection")
+                    || msg.contains("read timeout")) {
+                reason = "ReadTimeout";
+            } else {
+                // any other root cause (e.g. some other IO error)
+                reason = rootClass;
+            }
             entityMetadataService.createEntityMetadata(
                     updated,
                     "update",
                     "failure",
                     null,
                     mongoWriteMillis,
-                    ex.getMessage()
+                    reason
             );
             throw ex;
         }
@@ -114,14 +172,40 @@ public class EntityService {
                     deletedInEs ? null : "ES document not found"
             );
             return deletedInEs;
-        } catch (Exception ex) {
+        }catch (Exception ex) {
+            Throwable cause = ex;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String rootClass = cause.getClass().getSimpleName();
+            String msg       = cause.getMessage() == null
+                    ? ""
+                    : cause.getMessage().toLowerCase();
+
+            // 2) bucket by root exception type or message
+            String reason;
+            if ("ResponseException".equals(rootClass)
+                    || msg.contains("429")
+                    || msg.contains("too many requests")) {
+                reason = "HTTP429";
+            } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                    || msg.contains("connect timed out")) {
+                reason = "ConnectTimeout";
+            } else if ("SocketTimeoutException".equals(rootClass)
+                    || msg.contains("timeout on connection")
+                    || msg.contains("read timeout")) {
+                reason = "ReadTimeout";
+            } else {
+                log.warn("Unclassified ES error: {} – {}", rootClass, cause.getMessage());
+                reason = rootClass;
+            }
             entityMetadataService.createEntityMetadata(
                     existing,
                     "delete",
                     "failure",
                     null,
                     mongoWriteMillis,
-                    ex.getMessage()
+                   reason
             );
             throw ex;
         }
