@@ -39,7 +39,7 @@ public class EntityService {
 
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
-        Entity toSave = new Entity(null, ent.getName(), now, now, null);
+        Entity toSave = new Entity(null, ent.getName(), now, now, false,null);
         long mongoWriteMillis = System.currentTimeMillis();
         Entity saved = mongoRepo.createEntity(toSave);
         try {
@@ -103,7 +103,7 @@ public class EntityService {
         updated = mongoRepo.updateEntity(updated);
         try {
             long esWriteMillis = System.currentTimeMillis();
-            esRepo.updateEntity(ES_INDEX, id, updated, updated.getCreateTime());
+            esRepo.updateEntity(ES_INDEX, id, updated);
             entityMetadataService.createEntityMetadata(
                     updated,
                     "update",
@@ -122,8 +122,6 @@ public class EntityService {
             String msg       = cause.getMessage() == null
                     ? ""
                     : cause.getMessage().toLowerCase();
-
-            // 2) bucket by root exception type or message
             String reason;
             if ("ResponseException".equals(rootClass)
                     || msg.contains("429")
@@ -155,23 +153,23 @@ public class EntityService {
     public boolean deleteEntity(String id) {
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
+        Entity toUpdate = EntityUtil.markDeleted(existing);
         long mongoWriteMillis = System.currentTimeMillis();
-        boolean deletedInMongo = mongoRepo.deleteEntity(id);
-        if (!deletedInMongo) {
-            return false;
-        }
+        Entity updated = mongoRepo.updateEntity(toUpdate);
         try {
-            boolean deletedInEs = esRepo.deleteEntity(ES_INDEX, id);
             long esWriteMillis = System.currentTimeMillis();
+            esRepo.updateEntity(ES_INDEX, id, updated);
+
+
             entityMetadataService.createEntityMetadata(
-                    existing,
+                    updated,
                     "delete",
-                    deletedInEs ? "success" : "not_found",
-                    deletedInEs ? esWriteMillis : null,
+                    "success",
+                    esWriteMillis,
                     mongoWriteMillis,
-                    deletedInEs ? null : "ES document not found"
+                    null
             );
-            return deletedInEs;
+            return true;
         }catch (Exception ex) {
             Throwable cause = ex;
             while (cause.getCause() != null) {
@@ -181,8 +179,6 @@ public class EntityService {
             String msg       = cause.getMessage() == null
                     ? ""
                     : cause.getMessage().toLowerCase();
-
-            // 2) bucket by root exception type or message
             String reason;
             if ("ResponseException".equals(rootClass)
                     || msg.contains("429")
@@ -200,7 +196,7 @@ public class EntityService {
                 reason = rootClass;
             }
             entityMetadataService.createEntityMetadata(
-                    existing,
+                    updated,
                     "delete",
                     "failure",
                     null,

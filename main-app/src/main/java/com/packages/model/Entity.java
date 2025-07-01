@@ -22,6 +22,7 @@ public class Entity {
     private String name;
     private LocalDateTime createTime;
     private LocalDateTime modifiedTime;
+    private boolean isDeleted ;
     @Version
     private Long version;
 }

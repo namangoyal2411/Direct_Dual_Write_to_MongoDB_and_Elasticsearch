@@ -14,7 +14,11 @@ public class EntityUtil {
     public static Entity updateEntity(Entity entity, Entity oldEntity) {
         oldEntity.setName(entity.getName());
         oldEntity.setModifiedTime(LocalDateTime.now());
-
+        return oldEntity;
+    }
+    public static Entity markDeleted(Entity oldEntity) {
+        oldEntity.setDeleted(true);
+        oldEntity.setModifiedTime(LocalDateTime.now());
         return oldEntity;
     }
 }

@@ -38,8 +38,7 @@ public class EntityElasticRepository {
     }
     public Entity updateEntity(String indexName,
                                String documentId,
-                               Entity entity,
-                               LocalDateTime createTime) {
+                               Entity entity) {
         try {
             UpdateRequest<Entity, Entity> req = UpdateRequest.of(u -> u
                     .index(indexName)
