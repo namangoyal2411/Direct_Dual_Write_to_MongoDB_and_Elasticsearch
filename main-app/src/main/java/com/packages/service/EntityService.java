@@ -30,7 +30,7 @@ public class EntityService {
         this.kafka = kafka;
         this.entityMetadataService = entityMetadataService;
     }
-    String dlqTopic ="dlq128";
+    String dlqTopic ="dlq130";
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
         Entity toSave = new Entity(null, ent.getName(), now, now, null);
@@ -50,7 +50,32 @@ public class EntityService {
             return saved;
         }  catch (Exception ex) {
             boolean isInvalidData = false;
-            String  reason        = extractReason(ex);
+            Throwable cause = ex;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String rootClass = cause.getClass().getSimpleName();
+            String msg       = cause.getMessage() == null
+                    ? ""
+                    : cause.getMessage().toLowerCase();
+
+            // 2) bucket by root exception type or message
+            String reason;
+            if ("ResponseException".equals(rootClass)
+                    || msg.contains("429")
+                    || msg.contains("too many requests")) {
+                reason = "HTTP429";
+            } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                    || msg.contains("connect timed out")) {
+                reason = "ConnectTimeout";
+            } else if ("SocketTimeoutException".equals(rootClass)
+                    || msg.contains("timeout on connection")
+                    || msg.contains("read timeout")) {
+                reason = "ReadTimeout";
+            } else {
+                // any other root cause (e.g. some other IO error)
+                reason = rootClass;
+            }
             if (ex instanceof ElasticsearchException ee && ee.status() == 400) {
                 isInvalidData = true;
             }
@@ -87,7 +112,32 @@ public class EntityService {
             return updated;
         } catch (Exception ex) {
             boolean isInvalidData = false;
-            String  reason        = extractReason(ex);
+            Throwable cause = ex;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String rootClass = cause.getClass().getSimpleName();
+            String msg       = cause.getMessage() == null
+                    ? ""
+                    : cause.getMessage().toLowerCase();
+
+            // 2) bucket by root exception type or message
+            String reason;
+            if ("ResponseException".equals(rootClass)
+                    || msg.contains("429")
+                    || msg.contains("too many requests")) {
+                reason = "HTTP429";
+            } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                    || msg.contains("connect timed out")) {
+                reason = "ConnectTimeout";
+            } else if ("SocketTimeoutException".equals(rootClass)
+                    || msg.contains("timeout on connection")
+                    || msg.contains("read timeout")) {
+                reason = "ReadTimeout";
+            } else {
+                // any other root cause (e.g. some other IO error)
+                reason = rootClass;
+            }
             if (ex instanceof ElasticsearchException ee && ee.status() == 400) {
                 isInvalidData = true;
             }
@@ -126,7 +176,32 @@ public class EntityService {
         }
         catch (Exception ex) {
             boolean isInvalidData = false;
-            String  reason        = extractReason(ex);
+            Throwable cause = ex;
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            String rootClass = cause.getClass().getSimpleName();
+            String msg       = cause.getMessage() == null
+                    ? ""
+                    : cause.getMessage().toLowerCase();
+
+            // 2) bucket by root exception type or message
+            String reason;
+            if ("ResponseException".equals(rootClass)
+                    || msg.contains("429")
+                    || msg.contains("too many requests")) {
+                reason = "HTTP429";
+            } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                    || msg.contains("connect timed out")) {
+                reason = "ConnectTimeout";
+            } else if ("SocketTimeoutException".equals(rootClass)
+                    || msg.contains("timeout on connection")
+                    || msg.contains("read timeout")) {
+                reason = "ReadTimeout";
+            } else {
+                // any other root cause (e.g. some other IO error)
+                reason = rootClass;
+            }
             if (ex instanceof ElasticsearchException ee && ee.status() == 400) {
                 isInvalidData = true;
             }

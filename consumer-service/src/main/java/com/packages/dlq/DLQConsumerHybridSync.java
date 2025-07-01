@@ -10,6 +10,8 @@ import com.packages.repository.EntityMetadataMongoRepository;
 import com.packages.repository.EntityMetadataRepository;
 import com.packages.repository.EntityMongoRepository;
 import com.packages.service.EntityMetadataService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,6 +31,8 @@ public class DLQConsumerHybridSync {
     private final EntityMetadataMongoRepository metadataMongoRepository;
     private final KafkaTemplate<String, EntityEvent> kafka;
     private final EntityMetadataService metadataService;
+    private static final Logger log =
+            LoggerFactory.getLogger(DLQConsumerHybridSync.class);
     @Autowired
     public DLQConsumerHybridSync(EntityElasticRepository esRepo,
                                  KafkaTemplate<String, EntityEvent> kafka,EntityMetadataMongoRepository metadataMongoRepository,EntityMetadataService metadataService) {
@@ -37,11 +41,12 @@ public class DLQConsumerHybridSync {
         this.metadataMongoRepository = metadataMongoRepository;
         this.metadataService = metadataService;
     }
-    @KafkaListener(topics = "dlq128", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq130", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
 //        EntityMetadata meta = metadataMongoRepository.getEntityMetadata(event.getMetadataId())
 //                .orElseThrow(() -> new EntityNotFoundException(event.getMetadataId()));
         int retryCount = event.getRetryCount();
+        log.info("retry count = {}", retryCount);
         try {
             switch (event.getOperation()) {
                 case "create" -> esRepo.createEntity("entity", event.getEntity());
@@ -62,7 +67,7 @@ public class DLQConsumerHybridSync {
                 long backoff = Math.min(1L << next, MAX_BACKOFF_MS);
                 event.setRetryCount(next);
                 scheduler.schedule(
-                        () -> kafka.send("dlq128", event),
+                        () -> kafka.send("dlq130", event),
                         backoff,
                         TimeUnit.MILLISECONDS
                 );
@@ -77,9 +82,31 @@ public class DLQConsumerHybridSync {
 
 
     private String extractReason(Exception ex) {
-        return (ex instanceof ElasticsearchException ee)
-                ? ee.error().reason()
-                : ex.getMessage();
+        Throwable cause = ex;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        String rootClass = cause.getClass().getSimpleName();
+        String msg       = cause.getMessage() == null
+                ? ""
+                : cause.getMessage().toLowerCase();
+        String reason;
+        if ("ResponseException".equals(rootClass)
+                || msg.contains("429")
+                || msg.contains("too many requests")) {
+            reason = "HTTP429";
+        } else if ("ConnectionRequestTimeoutException".equals(rootClass)
+                || msg.contains("connect timed out")) {
+            reason = "ConnectTimeout";
+        } else if ("SocketTimeoutException".equals(rootClass)
+                || msg.contains("timeout on connection")
+                || msg.contains("read timeout")) {
+            reason = "ReadTimeout";
+        } else {
+            // any other root cause (e.g. some other IO error)
+            reason = rootClass;
+        }
+        return reason;
     }
 }
 
