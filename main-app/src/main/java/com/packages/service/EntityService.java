@@ -18,7 +18,7 @@ public class EntityService {
 
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
-        Entity toSave = new Entity(null, ent.getName(), now, now, null);
+        Entity toSave = new Entity(null, ent.getName(), now, now, false ,null);
         Entity saved = mongoRepo.createEntity(toSave);
         return saved;
     }
@@ -32,8 +32,11 @@ public class EntityService {
     }
 
     public boolean deleteEntity(String id) {
-        mongoRepo.getEntity(id).orElseThrow(() -> new EntityNotFoundException(id));
-        return mongoRepo.deleteEntity(id);
+        Entity existing = mongoRepo.getEntity(id)
+                .orElseThrow(() -> new EntityNotFoundException(id));
+        Entity toUpdate = EntityUtil.markDeleted(existing);
+       mongoRepo.updateEntity(toUpdate);
+        return true;
     }
 }
 

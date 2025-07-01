@@ -34,10 +34,7 @@ public class EntityMetadataService {
                                                Long esWriteTime,
                                                Long mongoWriteMillis,
                                                String failureReason) {
-        LocalDateTime modified = entity.getModifiedTime();
         long version = entity.getVersion();
-        if ("delete".equals(operation))
-            version++;
         String metaId = entity.getId() + "-" + operation + "-" + version;
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)

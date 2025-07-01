@@ -105,9 +105,8 @@ public class ChangeStreamListenerService {
         try {
             switch (op) {
                 case "insert"            -> esRepo.createEntity("entity", entity);
-                case "update", "replace" -> esRepo.updateEntity("entity", entity.getId(), entity);
-                case "delete"            -> esRepo.deleteEntity("entity", entity.getId());
-                default                   -> {/* no-op */}
+                case "update", "replace"-> esRepo.updateEntity("entity", entity.getId(), entity);
+                default                   -> {}
             }
             long esTs = System.currentTimeMillis();
             entityMetadataService.createEntityMetadata(
