@@ -1,10 +1,5 @@
 package com.packages.dlq;
-
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import com.packages.exception.EntityNotFoundException;
-import com.packages.model.Entity;
 import com.packages.model.EntityEvent;
-import com.packages.model.EntityMetadata;
 import com.packages.repository.EntityElasticRepository;
 import com.packages.repository.EntityMetadataMongoRepository;
 import com.packages.repository.EntityMetadataRepository;
@@ -43,18 +38,14 @@ public class DLQConsumerHybridSync {
     }
     @KafkaListener(topics = "dlq130", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
-//        EntityMetadata meta = metadataMongoRepository.getEntityMetadata(event.getMetadataId())
-//                .orElseThrow(() -> new EntityNotFoundException(event.getMetadataId()));
         int retryCount = event.getRetryCount();
         log.info("retry count = {}", retryCount);
         try {
             switch (event.getOperation()) {
                 case "create" -> esRepo.createEntity("entity", event.getEntity());
-                case "update" -> esRepo.updateEntity("entity",
+                case "update","delete" -> esRepo.updateEntity("entity",
                         event.getEntity().getId(),
                         event.getEntity());
-                case "delete" -> esRepo.deleteEntity("entity",
-                        event.getEntity().getId());
                 default -> throw new IllegalArgumentException("Unknown op " + event.getOperation());
             }
             metadataService.updateEntityMetadata(
@@ -103,7 +94,6 @@ public class DLQConsumerHybridSync {
                 || msg.contains("read timeout")) {
             reason = "ReadTimeout";
         } else {
-            // any other root cause (e.g. some other IO error)
             reason = rootClass;
         }
         return reason;

@@ -40,13 +40,11 @@ public class EntityMetadataService {
                                                String failureReason) {
         LocalDateTime modified = entity.getModifiedTime();
         long version = entity.getVersion();
-        if ("delete".equals(operation))
-            version++;
         String metaId = entity.getId() + "-" + operation + "-" + version;
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(entity.getId())
-                .approach("Direct Data Transfer")
+                .approach("Hybrid Kafka Sync")
                 .operation(operation)
                 .operationSeq(version)
                 .mongoWriteMillis(mongoWriteMillis)

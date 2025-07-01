@@ -33,7 +33,7 @@ public class EntityService {
     String dlqTopic ="dlq130";
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
-        Entity toSave = new Entity(null, ent.getName(), now, now, null);
+        Entity toSave = new Entity(null, ent.getName(), now, now,false, null);
         long mongoWriteMillis = System.currentTimeMillis();
         Entity saved = mongoRepo.createEntity(toSave);
         try {
@@ -156,24 +156,21 @@ public class EntityService {
     public boolean deleteEntity(String id) {
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
+        Entity toUpdate = EntityUtil.markDeleted(existing);
         long mongoWriteMillis = System.currentTimeMillis();
-        boolean deletedInMongo = mongoRepo.deleteEntity(id);
-        if (!deletedInMongo) {
-            return false;
-        }
+        Entity updated = mongoRepo.updateEntity(toUpdate);
         try {
-            boolean deletedInEs = esRepo.deleteEntity(ES_INDEX, id);
             long esWriteMillis = System.currentTimeMillis();
+            esRepo.updateEntity(ES_INDEX, id, updated);
             entityMetadataService.createEntityMetadata(
-                    existing,
+                    updated,
                     "delete",
-                    deletedInEs ? "success" : "not_found",
-                    deletedInEs ? esWriteMillis : null,
+                    "success",
+                    esWriteMillis,
                     mongoWriteMillis,
-                    deletedInEs ? null : "ES document not found"
+                    null
             );
-            return deletedInEs;
-        }
+            return true;}
         catch (Exception ex) {
             boolean isInvalidData = false;
             Throwable cause = ex;
@@ -184,8 +181,6 @@ public class EntityService {
             String msg       = cause.getMessage() == null
                     ? ""
                     : cause.getMessage().toLowerCase();
-
-            // 2) bucket by root exception type or message
             String reason;
             if ("ResponseException".equals(rootClass)
                     || msg.contains("429")
@@ -199,7 +194,6 @@ public class EntityService {
                     || msg.contains("read timeout")) {
                 reason = "ReadTimeout";
             } else {
-                // any other root cause (e.g. some other IO error)
                 reason = rootClass;
             }
             if (ex instanceof ElasticsearchException ee && ee.status() == 400) {
@@ -210,7 +204,7 @@ public class EntityService {
                     null, mongoWriteMillis, reason
             );
             if (!isInvalidData) {
-                EntityEvent entityEvent = buildEvent("update",existing,entityMetadata.getMetaId());
+                EntityEvent entityEvent = buildEvent("delete",existing,entityMetadata.getMetaId());
                 kafka.send(dlqTopic, existing.getId(), entityEvent);
             }
             throw ex ;
