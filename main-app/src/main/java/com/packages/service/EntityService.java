@@ -1,27 +1,20 @@
 package com.packages.service;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.packages.exception.EntityNotFoundException;
 import com.packages.model.Entity;
-import com.packages.model.EntityMetadata;
 import com.packages.repository.EntityElasticRepository;
-import com.packages.repository.EntityMetadataRepository;
 import com.packages.repository.EntityMongoRepository;
 import com.packages.util.EntityUtil;
-import org.elasticsearch.client.ResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.net.SocketTimeoutException;
 import java.time.LocalDateTime;
-import java.util.Objects;
-import java.util.UUID;
+
 @Service
 public class EntityService {
-    private static final String ES_INDEX = "entity";
-
+    private static final String es_index = "entity";
     private final EntityMongoRepository mongoRepo;
     private final EntityElasticRepository esRepo;
     private final EntityMetadataService entityMetadataService;
@@ -44,7 +37,7 @@ public class EntityService {
         Entity saved = mongoRepo.createEntity(toSave);
         try {
             long esWriteMillis = System.currentTimeMillis();
-            esRepo.createEntity(ES_INDEX, saved);
+            esRepo.createEntity(es_index, saved);
             entityMetadataService.createEntityMetadata(
                     saved,
                     "create",
@@ -55,7 +48,6 @@ public class EntityService {
             );
             return saved;
         } catch (Exception ex) {
-            // normalize to lowercase (null-safe)
             Throwable cause = ex;
             while (cause.getCause() != null) {
                 cause = cause.getCause();
@@ -64,8 +56,6 @@ public class EntityService {
             String msg       = cause.getMessage() == null
                     ? ""
                     : cause.getMessage().toLowerCase();
-
-            // 2) bucket by root exception type or message
             String reason;
             if ("ResponseException".equals(rootClass)
                     || msg.contains("429")
@@ -79,7 +69,6 @@ public class EntityService {
                     || msg.contains("read timeout")) {
                 reason = "ReadTimeout";
             } else {
-                // any other root cause (e.g. some other IO error)
                 reason = rootClass;
             }
 
@@ -103,7 +92,7 @@ public class EntityService {
         updated = mongoRepo.updateEntity(updated);
         try {
             long esWriteMillis = System.currentTimeMillis();
-            esRepo.updateEntity(ES_INDEX, id, updated);
+            esRepo.updateEntity(es_index, id, updated);
             entityMetadataService.createEntityMetadata(
                     updated,
                     "update",
@@ -158,7 +147,7 @@ public class EntityService {
         Entity updated = mongoRepo.updateEntity(toUpdate);
         try {
             long esWriteMillis = System.currentTimeMillis();
-            esRepo.updateEntity(ES_INDEX, id, updated);
+            esRepo.updateEntity(es_index, id, updated);
 
 
             entityMetadataService.createEntityMetadata(

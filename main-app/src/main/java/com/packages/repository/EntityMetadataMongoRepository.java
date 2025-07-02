@@ -22,15 +22,4 @@ public class EntityMetadataMongoRepository {
         return repo.save(meta);
     }
 
-    public Optional<EntityMetadata> findById(String metaId) {
-        return repo.findById(metaId);
-    }
-
-    public boolean existsById(String metaId) {
-        return repo.existsById(metaId);
-    }
-
-    public void deleteById(String metaId) {
-        repo.deleteById(metaId);
-    }
 }
