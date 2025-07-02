@@ -36,7 +36,7 @@ public class DLQConsumerHybridSync {
         this.metadataMongoRepository = metadataMongoRepository;
         this.metadataService = metadataService;
     }
-    @KafkaListener(topics = "dlq130", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq136", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
         int retryCount = event.getRetryCount();
         log.info("retry count = {}", retryCount);
@@ -58,7 +58,7 @@ public class DLQConsumerHybridSync {
                 long backoff = Math.min(1L << next, MAX_BACKOFF_MS);
                 event.setRetryCount(next);
                 scheduler.schedule(
-                        () -> kafka.send("dlq130", event),
+                        () -> kafka.send("dlq136", event),
                         backoff,
                         TimeUnit.MILLISECONDS
                 );
