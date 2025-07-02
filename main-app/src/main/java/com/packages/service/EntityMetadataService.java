@@ -18,11 +18,6 @@ public class EntityMetadataService {
 
     private final EntityMetadataRepository repo;
     private final EntityMetadataMongoRepository mongoRepo;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "metadata-thread");
-        t.setDaemon(true);
-        return t;
-    });
     @Autowired
     public EntityMetadataService(EntityMetadataRepository repo,EntityMetadataMongoRepository mongoRepo) {
         this.repo     = repo;
@@ -50,7 +45,6 @@ public class EntityMetadataService {
                         ? System.currentTimeMillis()
                         : null)
                 .build();
-        executor.execute(() -> {
             try{
                 mongoRepo.save(meta);
                 repo.save(meta);
@@ -59,19 +53,7 @@ public class EntityMetadataService {
                 throw e ;
             }
 
-        });
+
         return meta ;
-    }
-    @PreDestroy
-    public void shutdown() {
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
-            }
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            executor.shutdownNow();
-        }
     }
 }
