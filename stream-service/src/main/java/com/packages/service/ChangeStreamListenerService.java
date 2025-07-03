@@ -28,6 +28,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -100,7 +101,10 @@ public class ChangeStreamListenerService {
         log.info("Checking attempt {}", attempt);
         String op        = change.getOperationType().getValue();
         Entity entity    = toEntity(change);
-        long   mongoTs   = System.currentTimeMillis();
+        long mongoTs = entity.getModifiedTime()
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
 
         try {
             switch (op) {
