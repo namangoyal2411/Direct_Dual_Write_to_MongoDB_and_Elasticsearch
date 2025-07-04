@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class DLQConsumerHybridSync {
     private static final int MAX_RETRIES = 5;
     private static final long MAX_BACKOFF_MS = 150L;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
     private final EntityElasticRepository esRepo;
     private final EntityMetadataMongoRepository metadataMongoRepository;
     private final KafkaTemplate<String, EntityEvent> kafka;
@@ -36,7 +36,7 @@ public class DLQConsumerHybridSync {
         this.metadataMongoRepository = metadataMongoRepository;
         this.metadataService = metadataService;
     }
-    @KafkaListener(topics = "dlq158", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq159", groupId = "dlq-consumer-group",concurrency = "10")
     public void consumeDLQ(EntityEvent event) {
         int retryCount = event.getRetryCount();
         log.info("retry count = {}", retryCount);
@@ -62,7 +62,7 @@ public class DLQConsumerHybridSync {
                 long jitteredBackoff = Math.round(baseBackoff * jitterFactor);
                 event.setRetryCount(next);
                 scheduler.schedule(
-                        () -> kafka.send("dlq158", event),
+                        () -> kafka.send("dlq159", event),
                         jitteredBackoff,
                         TimeUnit.MILLISECONDS
                 );
