@@ -30,7 +30,7 @@ public class EntityService {
         this.kafka = kafka;
         this.entityMetadataService = entityMetadataService;
     }
-    String dlqTopic ="dlq136";
+    String dlqTopic ="dlq158";
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
         Entity toSave = new Entity(null, ent.getName(), now, now,false, null);
@@ -58,8 +58,6 @@ public class EntityService {
             String msg       = cause.getMessage() == null
                     ? ""
                     : cause.getMessage().toLowerCase();
-
-            // 2) bucket by root exception type or message
             String reason;
             if ("ResponseException".equals(rootClass)
                     || msg.contains("429")
@@ -120,8 +118,6 @@ public class EntityService {
             String msg       = cause.getMessage() == null
                     ? ""
                     : cause.getMessage().toLowerCase();
-
-            // 2) bucket by root exception type or message
             String reason;
             if ("ResponseException".equals(rootClass)
                     || msg.contains("429")

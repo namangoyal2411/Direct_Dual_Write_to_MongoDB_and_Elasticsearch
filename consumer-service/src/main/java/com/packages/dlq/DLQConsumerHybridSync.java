@@ -14,14 +14,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class DLQConsumerHybridSync {
     private static final int MAX_RETRIES = 5;
-    private static final long MAX_BACKOFF_MS = 10L;
-    private final ScheduledExecutorService scheduler =
-            Executors.newSingleThreadScheduledExecutor();
+    private static final long MAX_BACKOFF_MS = 150L;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final EntityElasticRepository esRepo;
     private final EntityMetadataMongoRepository metadataMongoRepository;
     private final KafkaTemplate<String, EntityEvent> kafka;
@@ -36,7 +36,7 @@ public class DLQConsumerHybridSync {
         this.metadataMongoRepository = metadataMongoRepository;
         this.metadataService = metadataService;
     }
-    @KafkaListener(topics = "dlq136", groupId = "dlq-consumer-group")
+    @KafkaListener(topics = "dlq158", groupId = "dlq-consumer-group")
     public void consumeDLQ(EntityEvent event) {
         int retryCount = event.getRetryCount();
         log.info("retry count = {}", retryCount);
@@ -55,11 +55,15 @@ public class DLQConsumerHybridSync {
         } catch (Exception ex) {
             if (retryCount < MAX_RETRIES) {
                 int next = retryCount + 1;
-                long backoff = Math.min(1L << next, MAX_BACKOFF_MS);
+                long baseBackoff = Math.min((1L << next)*10, 500);
+                double jitterFactor = ThreadLocalRandom
+                        .current()
+                        .nextDouble(0.8, 1.2);
+                long jitteredBackoff = Math.round(baseBackoff * jitterFactor);
                 event.setRetryCount(next);
                 scheduler.schedule(
-                        () -> kafka.send("dlq136", event),
-                        backoff,
+                        () -> kafka.send("dlq158", event),
+                        jitteredBackoff,
                         TimeUnit.MILLISECONDS
                 );
             } else {
