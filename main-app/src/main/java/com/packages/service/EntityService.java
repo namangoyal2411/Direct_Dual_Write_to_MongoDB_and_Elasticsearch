@@ -36,8 +36,8 @@ public class EntityService {
         long mongoWriteMillis = System.currentTimeMillis();
         Entity saved = mongoRepo.createEntity(toSave);
         try {
-            long esWriteMillis = System.currentTimeMillis();
             esRepo.createEntity(es_index, saved);
+            long esWriteMillis = System.currentTimeMillis();
             entityMetadataService.createEntityMetadata(
                     saved,
                     "create",
@@ -91,8 +91,8 @@ public class EntityService {
         long mongoWriteMillis = System.currentTimeMillis();
         updated = mongoRepo.updateEntity(updated);
         try {
-            long esWriteMillis = System.currentTimeMillis();
             esRepo.updateEntity(es_index, id, updated);
+            long esWriteMillis = System.currentTimeMillis();
             entityMetadataService.createEntityMetadata(
                     updated,
                     "update",
@@ -146,8 +146,8 @@ public class EntityService {
         long mongoWriteMillis = System.currentTimeMillis();
         Entity updated = mongoRepo.updateEntity(toUpdate);
         try {
-            long esWriteMillis = System.currentTimeMillis();
             esRepo.updateEntity(es_index, id, updated);
+            long esWriteMillis = System.currentTimeMillis();
 
 
             entityMetadataService.createEntityMetadata(

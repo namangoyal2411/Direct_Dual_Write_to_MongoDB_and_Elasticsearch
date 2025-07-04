@@ -37,7 +37,7 @@ public class EntityMetadataService {
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(entity.getId())
-                .approach("Direct Data Transfer")
+                .approach("Direct Data Transfer 2")
                 .operation(operation)
                 .operationSeq(version)
                 .mongoWriteMillis(mongoWriteMillis)
