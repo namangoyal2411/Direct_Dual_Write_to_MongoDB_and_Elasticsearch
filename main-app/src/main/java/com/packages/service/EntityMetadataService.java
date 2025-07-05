@@ -4,6 +4,7 @@ import com.packages.model.Entity;
 import com.packages.model.EntityMetadata;
 import com.packages.repository.EntityMetadataMongoRepository;
 import com.packages.repository.EntityMetadataRepository;
+import com.packages.util.EntityMetadataUtil;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ public class EntityMetadataService {
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(entity.getId())
-                .approach("Change Stream")
+                .approach("Change Stream 2")
                 .operation(operation)
                 .operationSeq(version)
                 .mongoWriteMillis(mongoWriteMillis)
@@ -52,8 +53,19 @@ public class EntityMetadataService {
             catch (Exception e ){
                 throw e ;
             }
-
-
         return meta ;
+    }
+    public EntityMetadata updateEntityMetadata(String metaId,
+                                               String status,
+                                               Long esSyncMillis,
+                                               String failureReason) {
+        EntityMetadata meta = mongoRepo.getEntityMetadata(metaId)
+                .orElseThrow(() -> new IllegalArgumentException("Meta not found: " + metaId));
+        EntityMetadataUtil.applyUpdate(meta, status, esSyncMillis, failureReason);
+
+        mongoRepo.save(meta);
+        repo.save(meta);
+
+        return meta;
     }
 }

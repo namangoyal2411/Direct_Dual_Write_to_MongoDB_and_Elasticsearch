@@ -29,9 +29,7 @@ import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 @Profile("stream")
@@ -40,8 +38,9 @@ public class ChangeStreamListenerService {
     private static final int MAX_RETRIES = 5;
     private static final String DB_NAME    = "Datasync";
     private static final String COLL_NAME  = "Entity";
-    private final ScheduledExecutorService scheduler =
-    Executors.newScheduledThreadPool(2);
+    private final ExecutorService listener      = Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService workers = Executors.newScheduledThreadPool(8);
+    private final ScheduledExecutorService retryer = Executors.newScheduledThreadPool(4);
     private final MongoClient                    mongoClient;
     private final EntityElasticRepository        esRepo;
     private final EntityMetadataRepository       metadataRepo;
@@ -65,12 +64,14 @@ public class ChangeStreamListenerService {
     @PostConstruct
     void start() {
         log.info("Starting ChangeStreamListener");
-        scheduler.submit(this::listenLoop);
+        listener.submit(this::listenLoop);
     }
 
     @PreDestroy
     void stop() {
-        scheduler.shutdown();
+        listener.shutdown();
+        workers.shutdown();
+        retryer.shutdown();
     }
 
     private void listenLoop() {
@@ -85,12 +86,11 @@ public class ChangeStreamListenerService {
                 .fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE)
                 : coll.watch()
                 .startAtOperationTime(getCurrentTimestamp())
-                .fullDocument(FullDocument.UPDATE_LOOKUP)
-                .fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE);
+                .fullDocument(FullDocument.UPDATE_LOOKUP);
 
         stream.forEach(change -> {
             try {
-                processChange(change, 0);
+                workers.submit(() -> processChange(change, 0));
             } catch (Exception e) {
                 log.error("Error processing change", e);
             }
@@ -101,10 +101,7 @@ public class ChangeStreamListenerService {
         log.info("Checking attempt {}", attempt);
         String op        = change.getOperationType().getValue();
         Entity entity    = toEntity(change);
-        long mongoTs = entity.getModifiedTime()
-                .atZone(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli();
+        long mongoTs = change.getClusterTime().getTime() * 1000L;
 
         try {
             switch (op) {
@@ -113,15 +110,20 @@ public class ChangeStreamListenerService {
                 default                   -> {}
             }
             long esTs = System.currentTimeMillis();
-            entityMetadataService.createEntityMetadata(
-                    entity,
-                    op,
-                    "success",
-                    esTs,
-                    mongoTs,
-                    null
-            );
-
+            if (attempt==0) {
+                entityMetadataService.createEntityMetadata(
+                        entity,
+                        op,
+                        "success",
+                        esTs,
+                        mongoTs,
+                        null
+                );
+            }
+            else {
+            String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
+            entityMetadataService.updateEntityMetadata(metaId,"success",System.currentTimeMillis(),null);}
+            saveToken(change.getResumeToken());
         } catch (Exception ex) {
             boolean isInvalidData = false;
             String  reason        = ex.getMessage();
@@ -129,24 +131,31 @@ public class ChangeStreamListenerService {
                 if (ee.error() != null) reason = ee.error().reason();
                 isInvalidData = (ee.status() == 400);
             }
-            entityMetadataService.createEntityMetadata(
-                    entity,
-                    op,
-                    "failure",
-                    null,
-                    mongoTs,
-                    reason
-            );
+            if (attempt==0) {
+                entityMetadataService.createEntityMetadata(
+                        entity,
+                        op,
+                        "failure",
+                        null,
+                        mongoTs,
+                        reason
+                );
+            }
+            else if (attempt>=MAX_RETRIES) {
+                String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
+                entityMetadataService.updateEntityMetadata(metaId,"failure",null,reason);
+                saveToken(change.getResumeToken());
+            }
             if (!isInvalidData && attempt < MAX_RETRIES) {
-                long backoff = Math.min(1L << attempt, 10L);
-                scheduler.schedule(
+                long backoff = Math.min((1L << attempt)*10, 150);
+                long jitter  = ThreadLocalRandom.current().nextLong( (long)(backoff*0.8), (long)(backoff*1.2) );
+                log.warn("Scheduling retry #{} for entity {} in {} ms", attempt+1, entity.getId(), jitter);
+                retryer.schedule(
                         () -> processChange(change, attempt + 1),
-                        backoff,
+                        jitter,
                         TimeUnit.MILLISECONDS
                 );
             }
-        } finally {
-            saveToken(change.getResumeToken());
         }
     }
 
