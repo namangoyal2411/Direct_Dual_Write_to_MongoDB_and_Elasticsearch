@@ -110,12 +110,6 @@ public class ConsistencyService {
         double pct = total == 0 ? 100.0 : (matches * 100.0) / total;
         return new ConsistencyResult(total, matches, pct);
     }
-
-    /* ------------------------------------------------------------------ */
-    /*  HELPERS                                                           */
-    /* ------------------------------------------------------------------ */
-
-    /** Handles both ObjectId and String _id. */
     private static String toHexId(Document doc) {
         Object raw = doc.get("_id");
         return (raw instanceof ObjectId oid) ? oid.toHexString()
