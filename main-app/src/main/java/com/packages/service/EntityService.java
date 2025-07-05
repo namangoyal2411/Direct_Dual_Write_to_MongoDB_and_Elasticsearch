@@ -30,7 +30,7 @@ public class EntityService {
         this.kafka = kafka;
         this.entityMetadataService = entityMetadataService;
     }
-    String dlqTopic ="dlq159";
+    String dlqTopic ="dlq163";
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
         Entity toSave = new Entity(null, ent.getName(), now, now,false, null);
