@@ -30,15 +30,16 @@ public class EntityService {
         this.kafka = kafka;
         this.entityMetadataService = entityMetadataService;
     }
-    String dlqTopic ="dlq164";
+    String dlqTopic ="dlq170";
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
         Entity toSave = new Entity(null, ent.getName(), now, now,false, null);
         long mongoWriteMillis = System.currentTimeMillis();
         Entity saved = mongoRepo.createEntity(toSave);
         try {
-            long esWriteMillis = System.currentTimeMillis();
+
             esRepo.createEntity(ES_INDEX, saved);
+            long esWriteMillis = System.currentTimeMillis();
             entityMetadataService.createEntityMetadata(
                     saved,
                     "create",
@@ -71,7 +72,6 @@ public class EntityService {
                     || msg.contains("read timeout")) {
                 reason = "ReadTimeout";
             } else {
-                // any other root cause (e.g. some other IO error)
                 reason = rootClass;
             }
             if (ex instanceof ElasticsearchException ee && ee.status() == 400) {
@@ -97,8 +97,8 @@ public class EntityService {
         long mongoWriteMillis = System.currentTimeMillis();
         updated = mongoRepo.updateEntity(updated);
         try {
-            long esWriteMillis = System.currentTimeMillis();
             esRepo.updateEntity(ES_INDEX, id, updated);
+            long esWriteMillis = System.currentTimeMillis();
             entityMetadataService.createEntityMetadata(
                     updated,
                     "update",
@@ -156,8 +156,8 @@ public class EntityService {
         long mongoWriteMillis = System.currentTimeMillis();
         Entity updated = mongoRepo.updateEntity(toUpdate);
         try {
-            long esWriteMillis = System.currentTimeMillis();
             esRepo.updateEntity(ES_INDEX, id, updated);
+            long esWriteMillis = System.currentTimeMillis();
             entityMetadataService.createEntityMetadata(
                     updated,
                     "delete",
