@@ -39,8 +39,8 @@ public class ChangeStreamListenerService {
     private static final String DB_NAME    = "Datasync";
     private static final String COLL_NAME  = "Entity";
     private final ExecutorService listener      = Executors.newSingleThreadExecutor();
-    private final ScheduledExecutorService workers = Executors.newScheduledThreadPool(128);
-    private final ScheduledExecutorService retryer = Executors.newScheduledThreadPool(64);
+    private final ScheduledExecutorService workers = Executors.newScheduledThreadPool(8);
+    private final ScheduledExecutorService retryer = Executors.newScheduledThreadPool(4);
     private final MongoClient                    mongoClient;
     private final EntityElasticRepository        esRepo;
     private final EntityMetadataRepository       metadataRepo;
