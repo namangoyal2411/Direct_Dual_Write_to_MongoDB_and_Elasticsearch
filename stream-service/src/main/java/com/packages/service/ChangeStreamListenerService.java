@@ -194,6 +194,7 @@ public class ChangeStreamListenerService {
                 .createTime(toLDT(doc.getDate("createTime")))
                 .modifiedTime(toLDT(doc.getDate("modifiedTime")))
                 .version(doc.getLong("version"))
+                .isDeleted(doc.getBoolean("isDeleted"))
                 .build();
     }
 
