@@ -23,8 +23,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
-
-/** Compares every Mongo Entity with its ES counterpart in batches. */
 @Service
 public class ConsistencyService {
 
@@ -86,10 +84,10 @@ public class ConsistencyService {
                     byte[] mHash = normalisedHash(mdoc, false);
                     byte[] eHash = normalisedHash(
                             esDoc != null ? esDoc : mdoc,
-                            esDoc == null        /* mark “missing in ES” */ );
+                            esDoc == null       );
 
                     total++;
-                    if (Arrays.equals(mHash, eHash)) {   // constant-time compare
+                    if (Arrays.equals(mHash, eHash)) {
                         matches++;
                     }
                 }
@@ -133,7 +131,7 @@ public class ConsistencyService {
     }
     private static String extractId(Document doc) {
         Object raw = doc.get("_id");
-        if (raw == null) raw = doc.get("id");          // <-- ES uses "id"
+        if (raw == null) raw = doc.get("id");
         if (raw instanceof ObjectId oid) return oid.toHexString();
         return raw == null ? "" : raw.toString();
     }
@@ -141,8 +139,6 @@ public class ConsistencyService {
         if (raw instanceof Number n)         return n.longValue();
         if (raw instanceof java.util.Date d) return d.getTime();
         if (raw instanceof String s)         return Instant.parse(s).toEpochMilli();
-
-        /* ES date_nanos array -> epoch-ms (local JVM zone, i.e. IST) */
         if (raw instanceof List<?> arr && arr.size() >= 7) {
             int y  = ((Number) arr.get(0)).intValue();
             int mo = ((Number) arr.get(1)).intValue();
