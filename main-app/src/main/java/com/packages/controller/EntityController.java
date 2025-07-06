@@ -31,27 +31,33 @@ public class EntityController {
         return entityService.deleteEntity(documentId);
     }
 
-@ExceptionHandler(EntityNotFoundException.class)
-@ResponseStatus(HttpStatus.NOT_FOUND)
-public ErrorResponse handleNotFound(EntityNotFoundException ex) {
-    return new ErrorResponse("NOT_FOUND", ex.getMessage());
-}
-@ExceptionHandler(Exception.class)
-@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-public ErrorResponse handleGeneric(Exception ex) {
-    return new ErrorResponse("INTERNAL_ERROR", ex.getMessage());
-}
-
-public static class ErrorResponse {
-    private final String error;
-    private final String message;
-
-    public ErrorResponse(String error, String message) {
-        this.error   = error;
-        this.message = message;
+    @ExceptionHandler(EntityNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleNotFound(EntityNotFoundException ex) {
+        return new ErrorResponse("NOT_FOUND", ex.getMessage());
     }
 
-    public String getError()   { return error; }
-    public String getMessage() { return message; }
-}
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleGeneric(Exception ex) {
+        return new ErrorResponse("INTERNAL_ERROR", ex.getMessage());
+    }
+
+    public static class ErrorResponse {
+        private final String error;
+        private final String message;
+
+        public ErrorResponse(String error, String message) {
+            this.error = error;
+            this.message = message;
+        }
+
+        public String getError() {
+            return error;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+    }
 }

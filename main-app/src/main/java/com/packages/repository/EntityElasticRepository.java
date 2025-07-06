@@ -53,16 +53,4 @@ public class EntityElasticRepository {
         }
     }
 
-    public boolean deleteEntity(String indexName, String documentId) {
-        try {
-            DeleteResponse resp = client.delete(d -> d
-                    .index(indexName)
-                    .id(documentId)
-            );
-            Result r = resp.result();
-            return r == Result.Deleted  || r == Result.NotFound;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

@@ -27,11 +27,4 @@ public class EntityMongoRepository {
         return entityMongoRepositoryInterface.save(entity);
     }
 
-    public boolean deleteEntity(String documentId) {
-        if (entityMongoRepositoryInterface.existsById(documentId)) {
-            entityMongoRepositoryInterface.deleteById(documentId);
-            return true;
-        }
-        return false;
-    }
 }
