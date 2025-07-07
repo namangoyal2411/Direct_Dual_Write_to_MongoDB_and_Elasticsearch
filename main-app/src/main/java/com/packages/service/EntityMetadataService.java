@@ -35,7 +35,7 @@ public class EntityMetadataService {
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(entity.getId())
-                .approach("Change Stream 2")
+                .approach("Change Stream")
                 .operation(operation)
                 .operationSeq(version)
                 .mongoWriteMillis(mongoWriteMillis)

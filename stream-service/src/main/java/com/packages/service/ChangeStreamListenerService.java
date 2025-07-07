@@ -39,7 +39,7 @@ public class ChangeStreamListenerService {
     private static final String DB_NAME    = "Datasync";
     private static final String COLL_NAME  = "Entity";
     private final ExecutorService listener      = Executors.newSingleThreadExecutor();
-    private final ScheduledExecutorService workers = Executors.newScheduledThreadPool(8);
+    private final ScheduledExecutorService workers = Executors.newScheduledThreadPool(30);
     private final ScheduledExecutorService retryer = Executors.newScheduledThreadPool(4);
     private final MongoClient                    mongoClient;
     private final EntityElasticRepository        esRepo;
@@ -79,15 +79,25 @@ public class ChangeStreamListenerService {
                 .getDatabase(DB_NAME)
                 .getCollection(COLL_NAME);
 
+//        ChangeStreamIterable<Document> stream = (resumeToken != null)
+//                ? coll.watch()
+//                .resumeAfter(resumeToken)
+//                .fullDocument(FullDocument.UPDATE_LOOKUP)
+//                .fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE)
+//                : coll.watch()
+//                .startAtOperationTime(getCurrentTimestamp())
+//                .fullDocument(FullDocument.UPDATE_LOOKUP);
         ChangeStreamIterable<Document> stream = (resumeToken != null)
                 ? coll.watch()
                 .resumeAfter(resumeToken)
+                .batchSize(50)
+                .maxAwaitTime(20, TimeUnit.MILLISECONDS)
                 .fullDocument(FullDocument.UPDATE_LOOKUP)
-                .fullDocumentBeforeChange(FullDocumentBeforeChange.WHEN_AVAILABLE)
                 : coll.watch()
                 .startAtOperationTime(getCurrentTimestamp())
+                .batchSize(50)
+                .maxAwaitTime(20, TimeUnit.MILLISECONDS)
                 .fullDocument(FullDocument.UPDATE_LOOKUP);
-
         stream.forEach(change -> {
             try {
                 workers.submit(() -> processChange(change, 0));
