@@ -1,105 +1,85 @@
 package com.packages.dlq;
+
 import com.packages.model.EntityEvent;
 import com.packages.repository.EntityElasticRepository;
-import com.packages.repository.EntityMetadataMongoRepository;
-import com.packages.repository.EntityMetadataRepository;
-import com.packages.repository.EntityMongoRepository;
 import com.packages.service.EntityMetadataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
+import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 
 @Service
 public class DLQConsumerHybridSync {
-    private static final int MAX_RETRIES = 5;
-    private static final long MAX_BACKOFF_MS = 150L;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
+
+    private static final Logger log = LoggerFactory.getLogger(DLQConsumerHybridSync.class);
+
     private final EntityElasticRepository esRepo;
-    private final EntityMetadataMongoRepository metadataMongoRepository;
-    private final KafkaTemplate<String, EntityEvent> kafka;
-    private final EntityMetadataService metadataService;
-    private static final Logger log =
-            LoggerFactory.getLogger(DLQConsumerHybridSync.class);
-    @Autowired
+    private final EntityMetadataService   metadataService;
+
     public DLQConsumerHybridSync(EntityElasticRepository esRepo,
-                                 KafkaTemplate<String, EntityEvent> kafka,EntityMetadataMongoRepository metadataMongoRepository,EntityMetadataService metadataService) {
+                                 EntityMetadataService metadataService) {
         this.esRepo = esRepo;
-        this.kafka = kafka;
-        this.metadataMongoRepository = metadataMongoRepository;
         this.metadataService = metadataService;
     }
-    @KafkaListener(topics = "dlq170", groupId = "dlq-consumer-group",concurrency = "10")
-    public void consumeDLQ(EntityEvent event) {
-        int retryCount = event.getRetryCount();
-        log.info("retry count = {}", retryCount);
-        try {
-            switch (event.getOperation()) {
-                case "create" -> esRepo.createEntity("entity", event.getEntity());
-                case "update","delete" -> esRepo.updateEntity("entity",
-                        event.getEntity().getId(),
-                        event.getEntity());
-                default -> throw new IllegalArgumentException("Unknown op " + event.getOperation());
-            }
-            metadataService.updateEntityMetadata(
-                    event.getMetadataId(), "success", System.currentTimeMillis(), null
-            );
 
-        } catch (Exception ex) {
-            if (retryCount < MAX_RETRIES) {
-                int next = retryCount + 1;
-                long baseBackoff = Math.min((1L << next)*10, 150L);
-                double jitterFactor = ThreadLocalRandom
-                        .current()
-                        .nextDouble(0.8, 1.2);
-                long jitteredBackoff = Math.round(baseBackoff * jitterFactor);
-                event.setRetryCount(next);
-                scheduler.schedule(
-                        () -> kafka.send("dlq170", event),
-                        jitteredBackoff,
-                        TimeUnit.MILLISECONDS
-                );
-            } else {
-                metadataService.updateEntityMetadata(
-                        event.getMetadataId(), "failure", null, extractReason(ex)
-                );
-            }
+    @RetryableTopic(
+            attempts               = "5",
+            backoff                = @Backoff(delay = 1_000, multiplier = 2.0, maxDelay = 30_000),
+            autoCreateTopics       = "true",
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            numPartitions          = "10"         // match main topic’s partition count
+    )
+    @KafkaListener(
+            topics     = "dlq173",
+            groupId    = "dlq-consumer-group",
+            concurrency = "10"
+    )
+    public void consumeDLQ(EntityEvent event) {
+
+        log.info("Processing DLQ event for entity {} op={}",
+                event.getEntity().getId(), event.getOperation());
+
+        switch (event.getOperation()) {
+            case "create" ->
+                    esRepo.createEntity("entity", event.getEntity());
+
+            case "update", "delete" ->
+                    esRepo.updateEntity("entity",
+                            event.getEntity().getId(),
+                            event.getEntity());
+
+            default ->
+                    throw new IllegalArgumentException(
+                            "Unknown op " + event.getOperation());
         }
+
+        metadataService.updateEntityMetadata(
+                event.getMetadataId(),
+                "success",
+                System.currentTimeMillis(),
+                null
+        );
     }
 
+    @DltHandler
+    public void processFailure(EntityEvent event,
+                               @Header(KafkaHeaders.DLT_ORIGINAL_TOPIC) String originalTopic) {
 
+        log.error("Exhausted retries for entity {} on topic {}",
+                event.getEntity().getId(), originalTopic);
 
-    private String extractReason(Exception ex) {
-        Throwable cause = ex;
-        while (cause.getCause() != null) {
-            cause = cause.getCause();
-        }
-        String rootClass = cause.getClass().getSimpleName();
-        String msg       = cause.getMessage() == null
-                ? ""
-                : cause.getMessage().toLowerCase();
-        String reason;
-        if ("ResponseException".equals(rootClass)
-                || msg.contains("429")
-                || msg.contains("too many requests")) {
-            reason = "HTTP429";
-        } else if ("ConnectionRequestTimeoutException".equals(rootClass)
-                || msg.contains("connect timed out")) {
-            reason = "ConnectTimeout";
-        } else if ("SocketTimeoutException".equals(rootClass)
-                || msg.contains("timeout on connection")
-                || msg.contains("read timeout")) {
-            reason = "ReadTimeout";
-        } else {
-            reason = rootClass;
-        }
-        return reason;
+        metadataService.updateEntityMetadata(
+                event.getMetadataId(),
+                "failure",
+                null,
+                "Exhausted retries on topic " + originalTopic
+        );
     }
 }
