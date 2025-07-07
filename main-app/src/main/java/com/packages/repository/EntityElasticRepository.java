@@ -2,12 +2,7 @@
 package com.packages.repository;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.Result;
-import co.elastic.clients.elasticsearch.core.DeleteResponse;
-import co.elastic.clients.elasticsearch.core.IndexRequest;
-import co.elastic.clients.elasticsearch.core.IndexResponse;
-import co.elastic.clients.elasticsearch.core.UpdateRequest;
-import co.elastic.clients.elasticsearch.core.UpdateResponse;
+import co.elastic.clients.elasticsearch.core.*;
 import com.packages.model.Entity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -54,16 +49,4 @@ public class EntityElasticRepository {
         }
     }
 
-    public boolean deleteEntity(String indexName, String documentId) {
-        try {
-            DeleteResponse resp = client.delete(d -> d
-                    .index(indexName)
-                    .id(documentId)
-            );
-            Result r = resp.result();
-            return r == Result.Deleted  || r == Result.NotFound;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }
