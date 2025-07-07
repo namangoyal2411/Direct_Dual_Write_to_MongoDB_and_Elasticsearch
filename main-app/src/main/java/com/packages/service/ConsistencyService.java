@@ -100,7 +100,7 @@ public class ConsistencyService {
                             esDoc == null        /* mark “missing in ES” */ );
 
                     total++;
-                    if (Arrays.equals(mHash, eHash)) {   // constant-time compare
+                    if (Arrays.equals(mHash, eHash)) {
                         matches++;
                     }
                 }
