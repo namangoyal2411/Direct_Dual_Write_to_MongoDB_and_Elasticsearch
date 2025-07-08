@@ -1,7 +1,9 @@
 package com.packages.service;
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
 import com.mongodb.client.ChangeStreamIterable;
+import com.mongodb.client.MongoChangeStreamCursor;
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.packages.model.ChangeStreamState;
@@ -51,7 +53,8 @@ public class ChangeStreamListenerService {
     private final ChangeStreamStateRepository tokenRepo;
     private volatile BsonDocument resumeToken;
     private final EntityMetadataService entityMetadataService;
-
+    private final Object pauseLock = new Object();
+    private volatile boolean retrying = false;
     @Autowired
     public ChangeStreamListenerService(
             MongoClient mongoClient,
@@ -86,18 +89,28 @@ public class ChangeStreamListenerService {
         ChangeStreamIterable<Document> stream = (resumeToken != null)
                 ? coll.watch()
                 .resumeAfter(resumeToken)
-                .batchSize(1000)
                 .fullDocument(FullDocument.UPDATE_LOOKUP)
                 : coll.watch()
                 .startAtOperationTime(getCurrentTimestamp())
-                .batchSize(1000)
                 .fullDocument(FullDocument.UPDATE_LOOKUP);
+        try (MongoCursor<ChangeStreamDocument<Document>> cursor = stream.iterator()) {
+            while (cursor.hasNext()) {
+                synchronized (pauseLock) {
+                    while (retrying) {
+                        try {
+                            pauseLock.wait();
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                }
 
-        List<ChangeStreamDocument<Document>> buffer = new ArrayList<>();
-        stream.forEach(change -> {
-            log.info("Received entity: {}", counter++);
-            workers.submit(() -> processChange(change, 0));
-        });
+                ChangeStreamDocument<Document> change = cursor.next();
+                log.info("Received entity: {}", counter++);
+                workers.submit(() -> processChange(change, 0));
+            }
+        }
     }
     public void processChange(ChangeStreamDocument<Document> change, int attempt) {
         log.info("Checking attempt {}", attempt);
@@ -127,6 +140,12 @@ public class ChangeStreamListenerService {
                 String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
                 entityMetadataService.updateEntityMetadata(metaId,"success",System.currentTimeMillis(),null);}
             saveToken(change.getResumeToken());
+            if (attempt > 0) {
+                synchronized (pauseLock) {
+                    retrying = false;
+                    pauseLock.notifyAll();
+                }
+            }
         } catch (Exception ex) {
             boolean isInvalidData = false;
             String reason = ex.getMessage();
@@ -151,8 +170,15 @@ public class ChangeStreamListenerService {
                 String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
                 entityMetadataService.updateEntityMetadata(metaId,"failure",null,reason);
                 saveToken(change.getResumeToken());
+                synchronized (pauseLock) {
+                    retrying = false;
+                    pauseLock.notifyAll();
+                }
             }
             if (!isInvalidData && attempt < MAX_RETRIES) {
+                synchronized (pauseLock) {
+                    retrying = true;
+                }
                 long backoff = Math.min((1L << attempt) * 10, 150);
                 long jitter = ThreadLocalRandom.current().nextLong((long) (backoff * 0.8), (long) (backoff * 1.2));
                 log.warn("Scheduling retry #{} for entity {} in {} ms", attempt + 1, entity.getId(), jitter);
