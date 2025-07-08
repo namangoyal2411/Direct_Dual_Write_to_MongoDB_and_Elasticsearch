@@ -25,7 +25,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.12.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.12.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation project(":stream-service")
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
 }
 springBoot {
     mainClass = 'com.Packages.ReliableAndResilientDataSyncBetweenMongoDBAndElasticsearchApplication'

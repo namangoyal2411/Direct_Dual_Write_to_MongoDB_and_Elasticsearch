@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 public class EntityService {
 
     private static final String ES_INDEX  = "entity";
-    private static final String DLQ_TOPIC = "dlq175";
+    private static final String DLQ_TOPIC = "dlq178";
 
     private final EntityMongoRepository      mongoRepo;
     private final EntityElasticRepository    esRepo;
@@ -35,8 +35,6 @@ public class EntityService {
         this.kafka           = kafka;
         this.metadataService = metadataService;
     }
-
-    /*────────────────────────────  CREATE  ────────────────────────────*/
 
     public Entity createEntity(Entity ent) {
 
@@ -57,12 +55,9 @@ public class EntityService {
 
         } catch (Exception ex) {
             handleFailure("create", saved, mongoWriteMs, ex);
-            throw ex;         // let controller know
+            throw ex;
         }
     }
-
-    /*────────────────────────────  UPDATE  ────────────────────────────*/
-
     public Entity updateEntity(String id, Entity delta) {
 
         Entity existing = mongoRepo.getEntity(id)
@@ -85,9 +80,6 @@ public class EntityService {
             throw ex;
         }
     }
-
-    /*────────────────────────────  DELETE  ────────────────────────────*/
-
     public boolean deleteEntity(String id) {
 
         Entity existing = mongoRepo.getEntity(id)
@@ -110,8 +102,6 @@ public class EntityService {
             throw ex;
         }
     }
-
-    /*────────────────────────  COMMON HELPERS  ────────────────────────*/
 
     private void handleFailure(String op,
                                Entity entity,

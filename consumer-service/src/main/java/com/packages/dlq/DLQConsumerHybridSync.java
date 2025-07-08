@@ -34,10 +34,10 @@ public class DLQConsumerHybridSync {
             backoff                = @Backoff(delay = 1_000, multiplier = 2.0, maxDelay = 30_000),
             autoCreateTopics       = "true",
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-            numPartitions          = "10"         // match main topic’s partition count
+            numPartitions          = "10"
     )
     @KafkaListener(
-            topics     = "dlq173",
+            topics     = "dlq178",
             groupId    = "dlq-consumer-group",
             concurrency = "10"
     )
@@ -69,17 +69,43 @@ public class DLQConsumerHybridSync {
     }
 
     @DltHandler
-    public void processFailure(EntityEvent event,
-                               @Header(KafkaHeaders.DLT_ORIGINAL_TOPIC) String originalTopic) {
+    public void processFailure(
+            EntityEvent event,
+            @Header(KafkaHeaders.DLT_ORIGINAL_TOPIC) String originalTopic,
+            @Header("kafka_dlt-exception-fqcn") String exceptionClassName,
+            @Header("kafka_dlt-exception-message") String exceptionMessage
+    ) {
+        String reason = classify(exceptionClassName, exceptionMessage);
 
-        log.error("Exhausted retries for entity {} on topic {}",
-                event.getEntity().getId(), originalTopic);
+        log.error("DLQ exhausted for entity {} on {} → classified reason={}",
+                event.getEntity().getId(), originalTopic, reason);
 
         metadataService.updateEntityMetadata(
                 event.getMetadataId(),
                 "failure",
                 null,
-                "Exhausted retries on topic " + originalTopic
+                reason
         );
+    }
+
+    private String classify(String rootFqcn, String message) {
+        String root = rootFqcn == null
+                ? "UnknownException"
+                : rootFqcn.substring(rootFqcn.lastIndexOf('.') + 1);
+
+        String msg = message == null ? "" : message.toLowerCase();
+
+        if ("ResponseException".equals(root) || msg.contains("429") || msg.contains("too many requests")) {
+            return "HTTP429";
+        }
+        if ("ConnectionRequestTimeoutException".equals(root) || msg.contains("connect timed out")) {
+            return "ConnectTimeout";
+        }
+        if ("SocketTimeoutException".equals(root)
+                || msg.contains("timeout on connection")
+                || msg.contains("read timeout")) {
+            return "ReadTimeout";
+        }
+        return root;
     }
 }
