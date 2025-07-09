@@ -22,20 +22,23 @@ public class EntityMetadataService {
 
     private final EntityMetadataRepository repo;
     private final EntityMetadataMongoRepository mongoRepo;
+
     @Autowired
-    public EntityMetadataService(EntityMetadataRepository repo,EntityMetadataMongoRepository mongoRepo) {
-        this.repo     = repo;
+    public EntityMetadataService(EntityMetadataRepository repo, EntityMetadataMongoRepository mongoRepo) {
+        this.repo = repo;
         this.mongoRepo = mongoRepo;
     }
+
     public EntityMetadata createEntityMetadata(Entity entity,
                                                String operation,
                                                String status,
                                                Long esWriteTime,
                                                Long mongoWriteMillis,
-                                               String failureReason) {
+                                               Exception ex) {
         LocalDateTime modified = entity.getModifiedTime();
         long version = entity.getVersion();
         String metaId = entity.getId() + "-" + operation + "-" + version;
+        String failureReason = classify(ex);
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(entity.getId())
@@ -50,16 +53,16 @@ public class EntityMetadataService {
                         ? System.currentTimeMillis()
                         : null)
                 .build();
-            try{
-                mongoRepo.save(meta);
-                repo.save(meta);
-            }
-            catch (Exception e ){
-                throw e ;
-            }
+        try {
+            mongoRepo.save(meta);
+            repo.save(meta);
+        } catch (Exception e) {
+            throw e;
+        }
 
-        return meta ;
+        return meta;
     }
+
     public EntityMetadata updateEntityMetadata(String metaId,
                                                String status,
                                                Long esSyncMillis,
@@ -68,9 +71,27 @@ public class EntityMetadataService {
                 .orElseThrow(() -> new IllegalArgumentException("Meta not found: " + metaId));
         EntityMetadataUtil.applyUpdate(meta, status, esSyncMillis, failureReason);
 
-            mongoRepo.save(meta);
-            repo.save(meta);
+        mongoRepo.save(meta);
+        repo.save(meta);
 
         return meta;
+    }
+
+    private String classify(Exception ex) {
+        Throwable cause = ex;
+        while (cause.getCause() != null) cause = cause.getCause();
+
+        String root = cause.getClass().getSimpleName();
+        String msg = cause.getMessage() == null ? "" : cause.getMessage().toLowerCase();
+
+        if ("ResponseException".equals(root) || msg.contains("429") || msg.contains("too many requests"))
+            return "HTTP429";
+        if ("ConnectionRequestTimeoutException".equals(root) || msg.contains("connect timed out"))
+            return "ConnectTimeout";
+        if ("SocketTimeoutException".equals(root) ||
+                msg.contains("timeout on connection") || msg.contains("read timeout"))
+            return "ReadTimeout";
+
+        return root;
     }
 }

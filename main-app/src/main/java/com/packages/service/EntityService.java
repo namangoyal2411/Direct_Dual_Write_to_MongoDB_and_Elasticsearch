@@ -58,12 +58,12 @@ public class EntityService {
             throw ex;
         }
     }
-    public Entity updateEntity(String id, Entity delta) {
+    public Entity updateEntity(String id, Entity ent) {
 
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
 
-        Entity updated       = mongoRepo.updateEntity( EntityUtil.updateEntity(delta, existing) );
+        Entity updated       = mongoRepo.updateEntity( EntityUtil.updateEntity(ent, existing) );
         long   mongoWriteMs  = System.currentTimeMillis();
 
         try {
@@ -111,10 +111,8 @@ public class EntityService {
         boolean isInvalidData = ex instanceof ElasticsearchException ee
                 && ee.status() == 400;
 
-        String reason = classify(ex);
-
         EntityMetadata meta = metadataService.createEntityMetadata(
-                entity, op, "failure", null, mongoWriteMs, reason
+                entity, op, "failure", null, mongoWriteMs,ex
         );
 
         if (!isInvalidData) {
@@ -123,23 +121,6 @@ public class EntityService {
         }
     }
 
-    private String classify(Exception ex) {
-        Throwable cause = ex;
-        while (cause.getCause() != null) cause = cause.getCause();
-
-        String root = cause.getClass().getSimpleName();
-        String msg  = cause.getMessage() == null ? "" : cause.getMessage().toLowerCase();
-
-        if ("ResponseException".equals(root) || msg.contains("429") || msg.contains("too many requests"))
-            return "HTTP429";
-        if ("ConnectionRequestTimeoutException".equals(root) || msg.contains("connect timed out"))
-            return "ConnectTimeout";
-        if ("SocketTimeoutException".equals(root) ||
-                msg.contains("timeout on connection") || msg.contains("read timeout"))
-            return "ReadTimeout";
-
-        return root;
-    }
 
     private EntityEvent buildEvent(String op, Entity entity, String metadataId) {
         return EntityEvent.builder()
