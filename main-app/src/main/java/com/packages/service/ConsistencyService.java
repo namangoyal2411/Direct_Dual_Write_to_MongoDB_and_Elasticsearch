@@ -23,8 +23,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
-
-/** Compares every Mongo Entity with its ES counterpart in batches. */
 @Service
 public class ConsistencyService {
 
@@ -33,8 +31,6 @@ public class ConsistencyService {
 
     private ObjectMapper  mapper;
     private MessageDigest sha256;
-
-    /** Tune for memory / speed trade-off. */
     private static final int    BATCH_SIZE = 1_000;
     private static final String ES_INDEX   = "entity";
 
@@ -52,10 +48,6 @@ public class ConsistencyService {
 
         sha256 = MessageDigest.getInstance("SHA-256");
     }
-
-    /* ------------------------------------------------------------------ */
-    /*  PUBLIC API                                                        */
-    /* ------------------------------------------------------------------ */
     public ConsistencyResult calculate() throws IOException {
 
         long total   = 0;
@@ -70,22 +62,16 @@ public class ConsistencyService {
             List<Document> batch = new ArrayList<>(BATCH_SIZE);
 
             while (cursor.hasNext()) {
-
-                /* ----------- collect one Mongo batch ------------- */
                 ids.clear();
                 batch.clear();
                 for (int i = 0; i < BATCH_SIZE && cursor.hasNext(); i++) {
                     Document mdoc = cursor.next();
                     batch.add(mdoc);
-                    ids.add(toHexId(mdoc));          // safe for ObjectId/String
+                    ids.add(toHexId(mdoc));
                 }
-
-                /* ------------- multi-get from ES ----------------- */
                 MgetResponse<Document> esResp = es.mget(
                         req -> req.index(ES_INDEX).ids(ids),
                         Document.class);
-
-                /* ------------- compare each pair ----------------- */
                 List<MultiGetResponseItem<Document>> items = esResp.docs();
 
                 for (int i = 0; i < items.size(); i++) {
@@ -97,10 +83,10 @@ public class ConsistencyService {
                     byte[] mHash = normalisedHash(mdoc, false);
                     byte[] eHash = normalisedHash(
                             esDoc != null ? esDoc : mdoc,
-                            esDoc == null        /* mark “missing in ES” */ );
+                            esDoc == null     );
 
                     total++;
-                    if (Arrays.equals(mHash, eHash)) {   // constant-time compare
+                    if (Arrays.equals(mHash, eHash)) {
                         matches++;
                     }
                 }
@@ -120,7 +106,7 @@ public class ConsistencyService {
 
         Map<String,Object> norm = new LinkedHashMap<>();
 
-        norm.put("id", extractId(src));                // <-- use new helper
+        norm.put("id", extractId(src));
         norm.put("name", src.getString("name"));
 
         norm.put("createTime",   epochMillis(src.get("createTime")));
@@ -144,7 +130,7 @@ public class ConsistencyService {
     }
     private static String extractId(Document doc) {
         Object raw = doc.get("_id");
-        if (raw == null) raw = doc.get("id");          // <-- ES uses "id"
+        if (raw == null) raw = doc.get("id");
         if (raw instanceof ObjectId oid) return oid.toHexString();
         return raw == null ? "" : raw.toString();
     }
@@ -153,7 +139,6 @@ public class ConsistencyService {
         if (raw instanceof java.util.Date d) return d.getTime();
         if (raw instanceof String s)         return Instant.parse(s).toEpochMilli();
 
-        /* ES date_nanos array -> epoch-ms (local JVM zone, i.e. IST) */
         if (raw instanceof List<?> arr && arr.size() >= 7) {
             int y  = ((Number) arr.get(0)).intValue();
             int mo = ((Number) arr.get(1)).intValue();
@@ -163,7 +148,6 @@ public class ConsistencyService {
             int se = ((Number) arr.get(5)).intValue();
             int ns = ((Number) arr.get(6)).intValue();
             return LocalDateTime.of(y, mo, d, h, mi, se, ns)
-                    /* USE SYSTEM DEFAULT ZONE (IST) */
                     .atZone(ZoneId.systemDefault())
                     .toInstant()
                     .toEpochMilli();
