@@ -39,7 +39,7 @@ public class EntityMetadataService {
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
                 .entityId(entity.getId())
-                .approach("Hybrid Kafka Sync")
+                .approach("hybrid kafka sync")
                 .operation(operation)
                 .operationSeq(version)
                 .mongoWriteMillis(mongoWriteMillis)

@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 public class EntityService {
 
     private static final String ES_INDEX  = "entity";
-    private static final String DLQ_TOPIC = "dlq178";
+    private static final String DLQ_TOPIC = "Dlq";
 
     private final EntityMongoRepository      mongoRepo;
     private final EntityElasticRepository    esRepo;

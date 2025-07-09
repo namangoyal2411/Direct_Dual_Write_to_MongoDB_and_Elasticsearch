@@ -37,7 +37,7 @@ public class DLQConsumerHybridSync {
             numPartitions          = "10"
     )
     @KafkaListener(
-            topics     = "dlq178",
+            topics     = "Dlq",
             groupId    = "dlq-consumer-group",
             concurrency = "10"
     )
