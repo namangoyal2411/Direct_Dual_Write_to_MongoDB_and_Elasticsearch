@@ -24,7 +24,7 @@
 //@SpringBootTest(
 //        classes = {
 //                ReliableAndResilientDataSyncBetweenMongoDBAndElasticsearchApplication.class
-//                ,com.Packages.listener.StreamServiceApplication.class
+//                ,com.packages.listener.StreamServiceApplication.class
 //        },
 //        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 //)

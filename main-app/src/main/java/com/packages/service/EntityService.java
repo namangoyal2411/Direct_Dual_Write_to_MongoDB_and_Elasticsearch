@@ -36,7 +36,7 @@ public class EntityService {
         Entity saved = mongoRepo.createEntity(toSave);
         try {
             esRepo.createEntity(ES_INDEX, saved);
-            long esTime=System.currentTimeMillis();
+            long esTime = System.currentTimeMillis();
             metadataService.recordSuccess(saved, "create", esTime, mongoTime);
             return saved;
         } catch (Exception ex) {
@@ -53,7 +53,7 @@ public class EntityService {
         updated = mongoRepo.updateEntity(updated);
         try {
             esRepo.updateEntity(ES_INDEX, id, updated);
-            long esTime=System.currentTimeMillis();
+            long esTime = System.currentTimeMillis();
             metadataService.recordSuccess(updated, "update", esTime, mongoTime);
             return updated;
         } catch (Exception ex) {
@@ -70,7 +70,7 @@ public class EntityService {
         Entity updated = mongoRepo.updateEntity(marked);
         try {
             esRepo.updateEntity(ES_INDEX, id, updated);
-            long esTime=System.currentTimeMillis();
+            long esTime = System.currentTimeMillis();
             metadataService.recordSuccess(updated, "delete", esTime, mongoTime);
             return true;
         } catch (Exception ex) {
