@@ -146,12 +146,12 @@ public class ChangeStreamListenerService {
                         "failure",
                         null,
                         mongoTs,
-                        reason
+                        ex
                 );
             }
             else if (attempt>=MAX_RETRIES) {
                 String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
-                entityMetadataService.updateEntityMetadata(metaId,"failure",null,reason);
+                entityMetadataService.updateEntityMetadata(metaId,"failure",null,ex);
                 saveToken(change.getResumeToken());
             }
             if (!isInvalidData && attempt < MAX_RETRIES) {

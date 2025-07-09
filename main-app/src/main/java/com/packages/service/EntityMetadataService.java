@@ -29,8 +29,9 @@ public class EntityMetadataService {
                                                String status,
                                                Long esWriteTime,
                                                Long mongoWriteMillis,
-                                               String failureReason) {
+                                               Exception ex ) {
         long version = entity.getVersion();
+        String failureReason = classify(ex);
         String metaId = entity.getId() + "-" + operation + "-" + version;
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
@@ -58,7 +59,8 @@ public class EntityMetadataService {
     public EntityMetadata updateEntityMetadata(String metaId,
                                                String status,
                                                Long esSyncMillis,
-                                               String failureReason) {
+                                              Exception ex ) {
+        String failureReason = classify(ex);
         EntityMetadata meta = mongoRepo.getEntityMetadata(metaId)
                 .orElseThrow(() -> new IllegalArgumentException("Meta not found: " + metaId));
         EntityMetadataUtil.applyUpdate(meta, status, esSyncMillis, failureReason);
@@ -67,5 +69,22 @@ public class EntityMetadataService {
         repo.save(meta);
 
         return meta;
+    }
+    private String classify(Exception ex) {
+        Throwable cause = ex;
+        while (cause.getCause() != null) cause = cause.getCause();
+
+        String root = cause.getClass().getSimpleName();
+        String msg = cause.getMessage() == null ? "" : cause.getMessage().toLowerCase();
+
+        if ("ResponseException".equals(root) || msg.contains("429") || msg.contains("too many requests"))
+            return "HTTP429";
+        if ("ConnectionRequestTimeoutException".equals(root) || msg.contains("connect timed out"))
+            return "ConnectTimeout";
+        if ("SocketTimeoutException".equals(root) ||
+                msg.contains("timeout on connection") || msg.contains("read timeout"))
+            return "ReadTimeout";
+
+        return root;
     }
 }
