@@ -90,11 +90,9 @@ public class ChangeStreamListenerService {
         ChangeStreamIterable<Document> stream = (resumeToken != null)
                 ? coll.watch()
                 .resumeAfter(resumeToken)
-                .batchSize(1000)
                 .fullDocument(FullDocument.UPDATE_LOOKUP)
                 : coll.watch()
                 .startAtOperationTime(getCurrentTimestamp())
-                .batchSize(1000)
                 .fullDocument(FullDocument.UPDATE_LOOKUP);
 
         List<ChangeStreamDocument<Document>> buffer = new ArrayList<>();
@@ -212,3 +210,325 @@ public class ChangeStreamListenerService {
                 .toLocalDateTime();
     }
 }
+//package com.packages.service;
+//
+//import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+//import com.mongodb.client.ChangeStreamIterable;
+//import com.mongodb.client.MongoClient;
+//import com.mongodb.client.model.changestream.ChangeStreamDocument;
+//import com.mongodb.client.model.changestream.FullDocument;
+//import com.packages.model.ChangeStreamState;
+//import com.packages.model.Entity;
+//import com.packages.repository.ChangeStreamStateRepository;
+//import com.packages.repository.EntityElasticRepository;
+//import jakarta.annotation.PostConstruct;
+//import jakarta.annotation.PreDestroy;
+//import org.bson.BsonDocument;
+//import org.bson.BsonTimestamp;
+//import org.bson.Document;
+//import org.bson.types.ObjectId;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+//import org.springframework.context.annotation.Profile;
+//import org.springframework.stereotype.Service;
+//
+//import java.io.IOException;
+//import java.time.Instant;
+//import java.time.LocalDateTime;
+//import java.time.ZoneId;
+//import java.util.concurrent.Executors;
+//import java.util.concurrent.ExecutorService;
+//import java.util.concurrent.ThreadLocalRandom;
+//import java.util.concurrent.TimeUnit;
+
+//@Service
+//@Profile("stream")
+//public class ChangeStreamListenerService {
+//    private static final Logger log = LoggerFactory.getLogger(ChangeStreamListenerService.class);
+//    private static final int MAX_RETRIES = 5;
+//    private static final String DB_NAME = "Datasync";
+//    private static final String COLL_NAME = "Entity";
+//
+//    private final ExecutorService listener = Executors.newSingleThreadExecutor();
+//    private final MongoClient mongoClient;
+//    private final EntityElasticRepository esRepo;
+//    private final ChangeStreamStateRepository tokenRepo;
+//    private volatile BsonDocument resumeToken;
+//
+//    public ChangeStreamListenerService(
+//            MongoClient mongoClient,
+//            EntityElasticRepository esRepo,
+//            ChangeStreamStateRepository tokenRepo
+//    ) {
+//        this.mongoClient = mongoClient;
+//        this.esRepo = esRepo;
+//        this.tokenRepo = tokenRepo;
+//        this.resumeToken = loadToken();
+//    }
+//
+//    @PostConstruct
+//    public void start() {
+//        listener.submit(this::listen);
+//    }
+//
+//    @PreDestroy
+//    public void stop() {
+//        listener.shutdownNow();
+//    }
+//
+//    private void listen() {
+//        var database = mongoClient.getDatabase(DB_NAME);
+//        var coll = database.getCollection(COLL_NAME);
+//
+//        ChangeStreamIterable<Document> stream = (resumeToken != null)
+//                ? coll.watch().resumeAfter(resumeToken).fullDocument(FullDocument.UPDATE_LOOKUP)
+//                : coll.watch().startAtOperationTime(getCurrentTimestamp()).fullDocument(FullDocument.UPDATE_LOOKUP);
+//
+//        stream.forEach(change -> {
+//            BsonDocument token = change.getResumeToken();
+//            for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+//                try {
+//                    processChange(change);
+//                    saveToken(token);
+//                    break;
+//                } catch (Exception ex) {
+//                    boolean bad = ex instanceof ElasticsearchException ee && ee.error() != null && ee.status() == 400;
+//                    if (bad || attempt == MAX_RETRIES) {
+//                        saveToken(token);
+//                        break;
+//                    }
+//                    long backoff = Math.min((1L << (attempt - 1)) * 1000L, 30000L);
+//                    long jitter = ThreadLocalRandom.current().nextLong((long)(backoff*0.8), (long)(backoff*1.2));
+//                    sleep(jitter);
+//                }
+//            }
+//        });
+//    }
+//
+//    private void processChange(ChangeStreamDocument<Document> change) throws IOException {
+//        Entity e = toEntity(change);
+//        String op = change.getOperationType().getValue();
+//        switch (op) {
+//            case "insert"  -> esRepo.createEntity("entity", e);
+//            case "update", "replace" -> esRepo.updateEntity("entity", e.getId(), e);
+//            default -> {}
+//        }
+//    }
+//
+//    private BsonDocument loadToken() {
+//        return tokenRepo.findById("mongoToEsSync")
+//                .map(ChangeStreamState::getResumeToken)
+//                .orElse(null);
+//    }
+//
+//    private void saveToken(BsonDocument token) {
+//        tokenRepo.save(new ChangeStreamState("mongoToEsSync", token, Instant.now()));
+//        resumeToken = token;
+//    }
+//
+//    private BsonTimestamp getCurrentTimestamp() {
+//        Document hello = mongoClient.getDatabase("admin").runCommand(new Document("hello", 1));
+//        return hello.get("operationTime", BsonTimestamp.class);
+//    }
+//
+//    private void sleep(long ms) {
+//        try { TimeUnit.MILLISECONDS.sleep(ms); }
+//        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+//    }
+//
+//    private Entity toEntity(ChangeStreamDocument<Document> change) {
+//        Document d = change.getFullDocument();
+//        ObjectId oid = d.getObjectId("_id");
+//        return Entity.builder()
+//                .id(oid != null ? oid.toHexString() : null)
+//                .name(d.getString("name"))
+//                .createTime(LocalDateTime.ofInstant(d.getDate("createTime").toInstant(), ZoneId.systemDefault()))
+//                .modifiedTime(LocalDateTime.ofInstant(d.getDate("modifiedTime").toInstant(), ZoneId.systemDefault()))
+//                .version(d.getLong("version"))
+//                .isDeleted(d.getBoolean("isDeleted"))
+//                .build();
+//    }
+//}
+//package com.packages.service;
+//
+//import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+//import com.mongodb.client.ChangeStreamIterable;
+//import com.mongodb.client.MongoClient;
+//import com.mongodb.client.MongoCursor;
+//import com.mongodb.client.model.changestream.ChangeStreamDocument;
+//import com.mongodb.client.model.changestream.FullDocument;
+//import com.packages.model.ChangeStreamState;
+//import com.packages.model.Entity;
+//import com.packages.repository.ChangeStreamStateRepository;
+//import com.packages.repository.EntityElasticRepository;
+//import com.packages.service.EntityMetadataService;
+//import jakarta.annotation.PostConstruct;
+//import jakarta.annotation.PreDestroy;
+//import org.bson.BsonDocument;
+//import org.bson.BsonTimestamp;
+//import org.bson.Document;
+//import org.bson.types.ObjectId;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
+//import org.springframework.context.annotation.Profile;
+//import org.springframework.stereotype.Service;
+//
+//import java.io.IOException;
+//import java.time.Instant;
+//import java.time.LocalDateTime;
+//import java.time.ZoneId;
+//import java.util.concurrent.ArrayBlockingQueue;
+//import java.util.concurrent.BlockingQueue;
+//import java.util.concurrent.ExecutorService;
+//import java.util.concurrent.Executors;
+//import java.util.concurrent.ThreadLocalRandom;
+//import java.util.concurrent.TimeUnit;
+//
+//@Service
+//@Profile("stream")
+//public class ChangeStreamListenerService {
+//    private static final Logger log = LoggerFactory.getLogger(ChangeStreamListenerService.class);
+//    private static final int MAX_RETRIES    = 5;
+//    private static final int WORKER_COUNT   = 8;
+//    private static final int QUEUE_CAPACITY = 8;
+//    private static final String DB_NAME    = "Datasync";
+//    private static final String COLL_NAME  = "Entity";
+//
+//    private final MongoClient                  mongoClient;
+//    private final EntityElasticRepository      esRepo;
+//    private final ChangeStreamStateRepository  tokenRepo;
+//    private final EntityMetadataService        metadataService;
+//    private volatile BsonDocument              resumeToken;
+//
+//    private final BlockingQueue<ChangeStreamDocument<Document>> queue =
+//            new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+//
+//    private final ExecutorService listener = Executors.newSingleThreadExecutor();
+//    private final ExecutorService workers  = Executors.newFixedThreadPool(WORKER_COUNT);
+//
+//    public ChangeStreamListenerService(
+//            MongoClient mongoClient,
+//            EntityElasticRepository esRepo,
+//            ChangeStreamStateRepository tokenRepo,
+//            EntityMetadataService metadataService
+//    ) {
+//        this.mongoClient     = mongoClient;
+//        this.esRepo          = esRepo;
+//        this.tokenRepo       = tokenRepo;
+//        this.metadataService = metadataService;
+//        this.resumeToken     = loadToken();
+//    }
+//
+//    @PostConstruct
+//    public void start() {
+//        listener.submit(this::produce);
+//        for (int i = 0; i < WORKER_COUNT; i++) {
+//            workers.submit(this::consume);
+//        }
+//    }
+//
+//    @PreDestroy
+//    public void stop() {
+//        listener.shutdownNow();
+//        workers.shutdownNow();
+//    }
+//
+//    private void produce() {
+//        var coll = mongoClient.getDatabase(DB_NAME).getCollection(COLL_NAME);
+//        ChangeStreamIterable<Document> stream = (resumeToken != null)
+//                ? coll.watch().resumeAfter(resumeToken).fullDocument(FullDocument.UPDATE_LOOKUP)
+//                : coll.watch().startAtOperationTime(getCurrentTimestamp()).fullDocument(FullDocument.UPDATE_LOOKUP);
+//        try (MongoCursor<ChangeStreamDocument<Document>> cursor = stream.iterator()) {
+//            while (!Thread.currentThread().isInterrupted() && cursor.hasNext()) {
+//                ChangeStreamDocument<Document> change = cursor.next();
+//                queue.put(change);
+//            }
+//        } catch (InterruptedException e) {
+//            Thread.currentThread().interrupt();
+//        }
+//    }
+//
+//    private void consume() {
+//        while (!Thread.currentThread().isInterrupted()) {
+//            try {
+//                ChangeStreamDocument<Document> change = queue.take();
+//                BsonDocument token = change.getResumeToken();
+//                Entity entity = toEntity(change);
+//                String op = change.getOperationType().getValue();
+//                long mongoTs = change.getClusterTime().getTime() * 1000L;
+//                boolean done = false;
+//                for (int attempt = 1; attempt <= MAX_RETRIES && !done; attempt++) {
+//                    try {
+//                        switch (op) {
+//                            case "insert"  -> esRepo.createEntity("entity", entity);
+//                            case "update", "replace" -> esRepo.updateEntity("entity", entity.getId(), entity);
+//                            default -> {}
+//                        }
+//                        long esTs = System.currentTimeMillis();
+//                        metadataService.createEntityMetadata(entity, op, "success", esTs, mongoTs, null);
+//                        saveToken(token);
+//                        done = true;
+//                    } catch (Exception ex) {
+//                        boolean bad = ex instanceof ElasticsearchException ee && ee.error() != null && ee.status() == 400;
+//                        if (bad) {
+//                            metadataService.createEntityMetadata(entity, op, "failure", null, mongoTs, ex.getMessage());
+//                            saveToken(token);
+//                            done = true;
+//                        } else if (attempt == MAX_RETRIES) {
+//                            metadataService.updateEntityMetadata(
+//                                    entity.getId() + "-" + op + "-" + entity.getVersion(),
+//                                    "failure",
+//                                    null,
+//                                    ex.getMessage()
+//                            );
+//                            saveToken(token);
+//                            done = true;
+//                        } else {
+//                            metadataService.createEntityMetadata(entity, op, "failure", null, mongoTs, ex.getMessage());
+//                            long backoff = Math.min((1L << (attempt - 1)) * 1000L, 30000L);
+//                            long jitter = ThreadLocalRandom.current().nextLong((long)(backoff*0.8), (long)(backoff*1.2));
+//                            TimeUnit.MILLISECONDS.sleep(jitter);
+//                        }
+//                    }
+//                }
+//            } catch (InterruptedException e) {
+//                Thread.currentThread().interrupt();
+//                return;
+//            } catch (Exception e) {
+//                log.error("Worker error", e);
+//            }
+//        }
+//    }
+//
+//    private BsonDocument loadToken() {
+//        return tokenRepo.findById("mongoToEsSync")
+//                .map(ChangeStreamState::getResumeToken)
+//                .orElse(null);
+//    }
+//
+//    private void saveToken(BsonDocument token) {
+//        tokenRepo.save(new ChangeStreamState("mongoToEsSync", token, Instant.now()));
+//        resumeToken = token;
+//    }
+//
+//    private BsonTimestamp getCurrentTimestamp() {
+//        Document hello = mongoClient.getDatabase("admin").runCommand(new Document("hello", 1));
+//        return hello.get("operationTime", BsonTimestamp.class);
+//    }
+//
+//    private Entity toEntity(ChangeStreamDocument<Document> change) {
+//        Document d = change.getFullDocument();
+//        ObjectId oid = d.getObjectId("_id");
+//        return Entity.builder()
+//                .id(oid != null ? oid.toHexString() : null)
+//                .name(d.getString("name"))
+//                .createTime(LocalDateTime.ofInstant(d.getDate("createTime").toInstant(),
+//                        ZoneId.systemDefault()))
+//                .modifiedTime(LocalDateTime.ofInstant(d.getDate("modifiedTime").toInstant(),
+//                        ZoneId.systemDefault()))
+//                .version(d.getLong("version"))
+//                .isDeleted(d.getBoolean("isDeleted"))
+//                .build();
+//    }
+//}
+
