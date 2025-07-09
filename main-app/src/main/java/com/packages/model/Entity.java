@@ -1,4 +1,5 @@
 package com.packages.model;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +21,7 @@ public class Entity {
     private String name;
     private LocalDateTime createTime;
     private LocalDateTime modifiedTime;
-    private boolean isDeleted ;
+    private boolean isDeleted;
     @Version
     private Long version;
 }

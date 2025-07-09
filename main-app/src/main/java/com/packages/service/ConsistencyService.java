@@ -23,20 +23,21 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
+
 @Service
 public class ConsistencyService {
 
-    private final MongoTemplate       mongo;
+    private final MongoTemplate mongo;
     private final ElasticsearchClient es;
 
-    private ObjectMapper  mapper;
+    private ObjectMapper mapper;
     private MessageDigest sha256;
-    private static final int    BATCH_SIZE = 1_000;
-    private static final String ES_INDEX   = "entity";
+    private static final int BATCH_SIZE = 1_000;
+    private static final String ES_INDEX = "entity";
 
     public ConsistencyService(MongoTemplate mongo, ElasticsearchClient es) {
         this.mongo = mongo;
-        this.es    = es;
+        this.es = es;
     }
 
     @PostConstruct
@@ -48,9 +49,10 @@ public class ConsistencyService {
 
         sha256 = MessageDigest.getInstance("SHA-256");
     }
+
     public ConsistencyResult calculate() throws IOException {
 
-        long total   = 0;
+        long total = 0;
         long matches = 0;
 
         try (MongoCursor<Document> cursor = mongo.getCollection("Entity")
@@ -58,7 +60,7 @@ public class ConsistencyService {
                 .batchSize(BATCH_SIZE)
                 .cursor()) {
 
-            List<String>   ids   = new ArrayList<>(BATCH_SIZE);
+            List<String> ids = new ArrayList<>(BATCH_SIZE);
             List<Document> batch = new ArrayList<>(BATCH_SIZE);
 
             while (cursor.hasNext()) {
@@ -75,7 +77,7 @@ public class ConsistencyService {
                 List<MultiGetResponseItem<Document>> items = esResp.docs();
 
                 for (int i = 0; i < items.size(); i++) {
-                    Document  mdoc = batch.get(i);
+                    Document mdoc = batch.get(i);
                     GetResult<Document> gres = items.get(i).result();
 
                     Document esDoc = gres.found() ? gres.source() : null;
@@ -83,7 +85,7 @@ public class ConsistencyService {
                     byte[] mHash = normalisedHash(mdoc, false);
                     byte[] eHash = normalisedHash(
                             esDoc != null ? esDoc : mdoc,
-                            esDoc == null     );
+                            esDoc == null);
 
                     total++;
                     if (Arrays.equals(mHash, eHash)) {
@@ -96,6 +98,7 @@ public class ConsistencyService {
         double pct = total == 0 ? 100.0 : (matches * 100.0) / total;
         return new ConsistencyResult(total, matches, pct);
     }
+
     private static String toHexId(Document doc) {
         Object raw = doc.get("_id");
         return (raw instanceof ObjectId oid) ? oid.toHexString()
@@ -104,12 +107,12 @@ public class ConsistencyService {
 
     private byte[] normalisedHash(Document src, boolean missing) throws IOException {
 
-        Map<String,Object> norm = new LinkedHashMap<>();
+        Map<String, Object> norm = new LinkedHashMap<>();
 
         norm.put("id", extractId(src));
         norm.put("name", src.getString("name"));
 
-        norm.put("createTime",   epochMillis(src.get("createTime")));
+        norm.put("createTime", epochMillis(src.get("createTime")));
         norm.put("modifiedTime", epochMillis(src.get("modifiedTime")));
 
         Object delRaw = src.get("isDeleted");
@@ -118,7 +121,7 @@ public class ConsistencyService {
         norm.put("isDeleted", isDel);
 
         Object vObj = src.get("version");
-        long ver    = (vObj instanceof Number n) ? n.longValue() : 0L;
+        long ver = (vObj instanceof Number n) ? n.longValue() : 0L;
         norm.put("version", ver);
 
         if (missing) norm.put("_missing", true);
@@ -128,22 +131,24 @@ public class ConsistencyService {
         sha256.reset();
         return hash;
     }
+
     private static String extractId(Document doc) {
         Object raw = doc.get("_id");
         if (raw == null) raw = doc.get("id");
         if (raw instanceof ObjectId oid) return oid.toHexString();
         return raw == null ? "" : raw.toString();
     }
+
     private static long epochMillis(Object raw) {
-        if (raw instanceof Number n)         return n.longValue();
+        if (raw instanceof Number n) return n.longValue();
         if (raw instanceof java.util.Date d) return d.getTime();
-        if (raw instanceof String s)         return Instant.parse(s).toEpochMilli();
+        if (raw instanceof String s) return Instant.parse(s).toEpochMilli();
 
         if (raw instanceof List<?> arr && arr.size() >= 7) {
-            int y  = ((Number) arr.get(0)).intValue();
+            int y = ((Number) arr.get(0)).intValue();
             int mo = ((Number) arr.get(1)).intValue();
-            int d  = ((Number) arr.get(2)).intValue();
-            int h  = ((Number) arr.get(3)).intValue();
+            int d = ((Number) arr.get(2)).intValue();
+            int h = ((Number) arr.get(3)).intValue();
             int mi = ((Number) arr.get(4)).intValue();
             int se = ((Number) arr.get(5)).intValue();
             int ns = ((Number) arr.get(6)).intValue();

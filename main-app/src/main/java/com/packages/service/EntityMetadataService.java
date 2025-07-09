@@ -31,7 +31,9 @@ public class EntityMetadataService {
                                                Long mongoWriteMillis,
                                                Exception ex ) {
         long version = entity.getVersion();
-        String failureReason = classify(ex);
+        String failureReason = (ex == null)
+                ? null
+                : classify(ex);
         String metaId = entity.getId() + "-" + operation + "-" + version;
         EntityMetadata meta = EntityMetadata.builder()
                 .metaId(metaId)
@@ -60,7 +62,9 @@ public class EntityMetadataService {
                                                String status,
                                                Long esSyncMillis,
                                               Exception ex ) {
-        String failureReason = classify(ex);
+        String failureReason = (ex == null)
+                ? null
+                : classify(ex);
         EntityMetadata meta = mongoRepo.getEntityMetadata(metaId)
                 .orElseThrow(() -> new IllegalArgumentException("Meta not found: " + metaId));
         EntityMetadataUtil.applyUpdate(meta, status, esSyncMillis, failureReason);

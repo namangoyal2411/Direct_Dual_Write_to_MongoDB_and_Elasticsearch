@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Repository
 public class EntityElasticRepository {
-    private final  ElasticsearchClient client;
+    private final ElasticsearchClient client;
 
     @Autowired
     public EntityElasticRepository(ElasticsearchClient client) {
@@ -32,6 +32,7 @@ public class EntityElasticRepository {
             throw new RuntimeException(e);
         }
     }
+
     public Entity updateEntity(String indexName,
                                String documentId,
                                Entity entity) {

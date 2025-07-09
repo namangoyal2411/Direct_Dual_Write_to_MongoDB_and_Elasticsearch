@@ -19,5 +19,5 @@ public class ChangeStreamState {
     @Id
     private String id;
     private org.bson.Document resumeToken;
-    private Instant    lastUpdated;
+    private Instant lastUpdated;
 }

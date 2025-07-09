@@ -8,7 +8,6 @@ import com.mongodb.client.model.changestream.ChangeStreamDocument;
 import com.mongodb.client.model.changestream.FullDocument;
 import com.packages.model.ChangeStreamState;
 import com.packages.model.Entity;
-import com.packages.model.EntityMetadata;
 import com.packages.repository.ChangeStreamStateRepository;
 import com.packages.repository.EntityElasticRepository;
 import com.packages.repository.EntityMetadataRepository;
@@ -26,13 +25,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -94,15 +91,11 @@ public class ChangeStreamListenerService {
                 : coll.watch()
                 .startAtOperationTime(getCurrentTimestamp())
                 .fullDocument(FullDocument.UPDATE_LOOKUP);
-
-        List<ChangeStreamDocument<Document>> buffer = new ArrayList<>();
         stream.forEach(change -> {
-           // log.info("Received entity: {}", counter++);
             workers.submit(() -> processChange(change, 0));
         });
     }
     public void processChange(ChangeStreamDocument<Document> change, int attempt) {
-       // log.info("Checking attempt {}", attempt);
         String op = change.getOperationType().getValue();
         Entity entity = toEntity(change);
         long mongoTs = change.getClusterTime().getTime() * 1000L;
@@ -131,12 +124,8 @@ public class ChangeStreamListenerService {
             saveToken(change.getResumeToken());
         } catch (Exception ex) {
             boolean isInvalidData = false;
-            String reason = ex.getMessage();
 
             if (ex instanceof ElasticsearchException ee) {
-                if (ee.error() != null) {
-                    reason = ee.error().reason();
-                }
                 isInvalidData = (ee.status() == 400);
             }
             if (attempt==0) {
@@ -146,7 +135,7 @@ public class ChangeStreamListenerService {
                         "failure",
                         null,
                         mongoTs,
-                        ex
+                       ex
                 );
             }
             else if (attempt>=MAX_RETRIES) {
@@ -210,5 +199,3 @@ public class ChangeStreamListenerService {
                 .toLocalDateTime();
     }
 }
-
-

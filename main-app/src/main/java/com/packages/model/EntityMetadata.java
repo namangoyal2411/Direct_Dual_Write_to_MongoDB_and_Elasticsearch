@@ -11,7 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection="EntityMetadata")
+@Document(collection = "EntityMetadata")
 public class EntityMetadata {
     @Id
     private String metaId;

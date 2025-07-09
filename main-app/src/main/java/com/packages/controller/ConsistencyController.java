@@ -1,4 +1,5 @@
 package com.packages.controller;
+
 import com.packages.model.ConsistencyResult;
 import com.packages.service.ConsistencyService;
 import org.springframework.web.bind.annotation.GetMapping;
