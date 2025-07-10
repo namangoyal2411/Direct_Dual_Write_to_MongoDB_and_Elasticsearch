@@ -25,8 +25,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,10 +35,10 @@ import java.util.concurrent.TimeUnit;
 @Profile("stream")
 public class ChangeStreamListenerService {
     private static final Logger log = LoggerFactory.getLogger(ChangeStreamListenerService.class);
-    private static final int MAX_RETRIES = 5;
+    private static final int maxRetries = 5;
     private static int counter = 0;
-    private static final String DB_NAME = "Datasync";
-    private static final String COLL_NAME = "Entity";
+    private static final String dbName = "Datasync";
+    private static final String collName = "Entity";
 
     private final ExecutorService listener = Executors.newSingleThreadExecutor();
     private final ExecutorService workers = Executors.newFixedThreadPool(10);
@@ -81,8 +79,8 @@ public class ChangeStreamListenerService {
     }
 
     private void listen() {
-        var database = mongoClient.getDatabase(DB_NAME);
-        var coll = database.getCollection(COLL_NAME);
+        var database = mongoClient.getDatabase(dbName);
+        var coll = database.getCollection(collName);
 
         ChangeStreamIterable<Document> stream = (resumeToken != null)
                 ? coll.watch()
@@ -138,12 +136,22 @@ public class ChangeStreamListenerService {
                        ex
                 );
             }
-            else if (attempt>=MAX_RETRIES) {
+            else if (attempt>= maxRetries) {
                 String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
                 entityMetadataService.updateEntityMetadata(metaId,"failure",null,ex);
+                Entity e = toEntity(change);
+                Document dlq = new Document()
+                        .append("entityId",   e.getId())
+                        .append("operation",  op)
+                        .append("version",    e.getVersion());
+                mongoClient
+                        .getDatabase(dbName)
+                        .getCollection("EntityDLQ")
+                        .insertOne(dlq);
+
                 saveToken(change.getResumeToken());
             }
-            if (!isInvalidData && attempt < MAX_RETRIES) {
+            if (!isInvalidData && attempt < maxRetries) {
                 long backoff = Math.min((1L << attempt) * 1000, 30000);
                 long jitter = ThreadLocalRandom.current().nextLong((long) (backoff * 0.8), (long) (backoff * 1.2));
                 log.warn("Scheduling retry #{} for entity {} in {} ms", attempt + 1, entity.getId(), jitter);
