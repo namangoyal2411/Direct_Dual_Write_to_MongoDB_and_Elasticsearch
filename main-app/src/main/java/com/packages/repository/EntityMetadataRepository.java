@@ -34,18 +34,6 @@ public class EntityMetadataRepository {
 
 
 
-    public void update(String metaId, EntityMetadata updatedMeta) {
-        try {
-            UpdateRequest<EntityMetadata, EntityMetadata> request = new UpdateRequest.Builder<EntityMetadata, EntityMetadata>()
-                    .index("entity_metadata")
-                    .id(metaId)
-                    .doc(updatedMeta)
-                    .docAsUpsert(true)
-                    .build();
-            elasticsearchClient.update(request, EntityMetadata.class);
-        }   catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+
 
 }

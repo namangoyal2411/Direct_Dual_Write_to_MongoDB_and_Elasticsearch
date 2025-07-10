@@ -28,16 +28,4 @@ public class EntityMetadataMongoRepository {
         return repo.findById(metaId);
     }
 
-    public boolean existsById(String metaId) {
-        return repo.existsById(metaId);
-    }
-
-    public void deleteById(String metaId) {
-        repo.deleteById(metaId);
-    }
-
-    @Repository
-    public static interface MongoRepositoryInterface extends MongoRepository<Entity, String> {
-
-    }
 }

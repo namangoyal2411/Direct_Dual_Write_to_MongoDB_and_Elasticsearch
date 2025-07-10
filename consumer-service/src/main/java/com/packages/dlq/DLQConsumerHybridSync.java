@@ -5,7 +5,6 @@ import com.packages.repository.EntityElasticRepository;
 import com.packages.service.EntityMetadataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
@@ -31,7 +30,7 @@ public class DLQConsumerHybridSync {
 
     @RetryableTopic(
             attempts               = "5",
-            backoff                = @Backoff(delay = 1_000, multiplier = 2.0, maxDelay = 30_000),
+            backoff                = @Backoff(delay = 1_000, multiplier = 2.0,random = true),
             autoCreateTopics       = "true",
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
             numPartitions          = "10"
@@ -43,8 +42,6 @@ public class DLQConsumerHybridSync {
     )
     public void consumeDLQ(EntityEvent event) {
 
-        log.info("Processing DLQ event for entity {} op={}",
-                event.getEntity().getId(), event.getOperation());
 
         switch (event.getOperation()) {
             case "create" ->
