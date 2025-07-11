@@ -1,3 +1,4 @@
+
 package com.packages.configuration;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
@@ -67,3 +68,4 @@ public class ElasticConfiguration {
         return new ElasticsearchClient(transport);
     }
 }
+

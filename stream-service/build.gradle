@@ -31,3 +31,9 @@ bootJar {
     archiveVersion  = '0.0.1-SNAPSHOT'
 }
 
+tasks.withType(Javadoc).configureEach {
+    options.addStringOption('Xdoclint:none', '-quiet')
+
+    options.encoding = 'UTF-8'
+    options.charSet  = 'UTF-8'
+}
