@@ -34,6 +34,12 @@ springBoot {
 test {
     useJUnitPlatform()
 }
+tasks.withType(Javadoc).configureEach {
+    options.addStringOption('Xdoclint:none', '-quiet')
+
+    options.encoding = 'UTF-8'
+    options.charSet  = 'UTF-8'
+}
 tasks.named('jar') {
     enabled = true
 }
