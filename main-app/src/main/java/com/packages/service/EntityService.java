@@ -121,10 +121,6 @@ public class EntityService {
         if (!isInvalidData) {
             EntityEvent evt = buildEvent(op, entity, meta.getMetaId());
             kafka.send(DLQ_TOPIC, entity.getId(), evt);
-//            scheduler.schedule(
-//                    () -> kafka.send(DLQ_TOPIC, entity.getId(), evt),
-//                    1_000, TimeUnit.MILLISECONDS
-//            );
         }
     }
 
