@@ -1,0 +1,8 @@
+com.packages
+com.packages.configuration
+com.packages.controller
+com.packages.exception
+com.packages.model
+com.packages.repository
+com.packages.service
+com.packages.util
