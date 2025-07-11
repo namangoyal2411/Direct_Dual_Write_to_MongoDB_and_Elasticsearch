@@ -16,6 +16,7 @@ public class EntityUtil {
         oldEntity.setModifiedTime(LocalDateTime.now());
         return oldEntity;
     }
+
     public static Entity markDeleted(Entity oldEntity) {
         oldEntity.setDeleted(true);
         oldEntity.setModifiedTime(LocalDateTime.now());
