@@ -36,6 +36,7 @@ public class EntityController {
     public ErrorResponse handleNotFound(EntityNotFoundException ex) {
         return new ErrorResponse("NOT_FOUND", ex.getMessage());
     }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleGeneric(Exception ex) {
@@ -47,11 +48,16 @@ public class EntityController {
         private final String message;
 
         public ErrorResponse(String error, String message) {
-            this.error   = error;
+            this.error = error;
             this.message = message;
         }
 
-        public String getError()   { return error; }
-        public String getMessage() { return message; }
+        public String getError() {
+            return error;
+        }
+
+        public String getMessage() {
+            return message;
+        }
     }
 }

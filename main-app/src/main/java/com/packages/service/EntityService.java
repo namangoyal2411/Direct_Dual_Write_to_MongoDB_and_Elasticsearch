@@ -20,22 +20,23 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class EntityService {
 
-    private static final String ES_INDEX  = "entity";
+    private static final String ES_INDEX = "entity";
     private static final String DLQ_TOPIC = "Dlq";
 
-    private final EntityMongoRepository      mongoRepo;
-    private final EntityElasticRepository    esRepo;
+    private final EntityMongoRepository mongoRepo;
+    private final EntityElasticRepository esRepo;
     private final KafkaTemplate<String, EntityEvent> kafka;
-    private final EntityMetadataService      metadataService;
+    private final EntityMetadataService metadataService;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
     public EntityService(EntityMongoRepository mongoRepo,
                          EntityElasticRepository esRepo,
                          KafkaTemplate<String, EntityEvent> kafka,
                          EntityMetadataService metadataService) {
 
-        this.mongoRepo       = mongoRepo;
-        this.esRepo          = esRepo;
-        this.kafka           = kafka;
+        this.mongoRepo = mongoRepo;
+        this.esRepo = esRepo;
+        this.kafka = kafka;
         this.metadataService = metadataService;
     }
 
@@ -45,7 +46,7 @@ public class EntityService {
         Entity toSave = new Entity(null, ent.getName(), now, now, false, null);
 
         long mongoWriteMs = System.currentTimeMillis();
-        Entity saved      = mongoRepo.createEntity(toSave);
+        Entity saved = mongoRepo.createEntity(toSave);
 
         try {
             esRepo.createEntity(ES_INDEX, saved);
@@ -61,13 +62,14 @@ public class EntityService {
             throw ex;
         }
     }
+
     public Entity updateEntity(String id, Entity ent) {
 
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
 
-        Entity updated       = mongoRepo.updateEntity( EntityUtil.updateEntity(ent, existing) );
-        long   mongoWriteMs  = System.currentTimeMillis();
+        Entity updated = mongoRepo.updateEntity(EntityUtil.updateEntity(ent, existing));
+        long mongoWriteMs = System.currentTimeMillis();
 
         try {
             esRepo.updateEntity(ES_INDEX, id, updated);
@@ -83,13 +85,14 @@ public class EntityService {
             throw ex;
         }
     }
+
     public boolean deleteEntity(String id) {
 
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
 
-        Entity markedDeleted = mongoRepo.updateEntity( EntityUtil.markDeleted(existing) );
-        long   mongoWriteMs  = System.currentTimeMillis();
+        Entity markedDeleted = mongoRepo.updateEntity(EntityUtil.markDeleted(existing));
+        long mongoWriteMs = System.currentTimeMillis();
 
         try {
             esRepo.updateEntity(ES_INDEX, id, markedDeleted);
@@ -115,7 +118,7 @@ public class EntityService {
                 && ee.status() == 400;
 
         EntityMetadata meta = metadataService.createEntityMetadata(
-                entity, op, "failure", null, mongoWriteMs,ex
+                entity, op, "failure", null, mongoWriteMs, ex
         );
 
         if (!isInvalidData) {
