@@ -19,17 +19,19 @@ public class EntityMetadataService {
 
     private final EntityMetadataRepository repo;
     private final EntityMetadataMongoRepository mongoRepo;
+
     @Autowired
-    public EntityMetadataService(EntityMetadataRepository repo,EntityMetadataMongoRepository mongoRepo) {
-        this.repo     = repo;
+    public EntityMetadataService(EntityMetadataRepository repo, EntityMetadataMongoRepository mongoRepo) {
+        this.repo = repo;
         this.mongoRepo = mongoRepo;
     }
+
     public EntityMetadata createEntityMetadata(Entity entity,
                                                String operation,
                                                String status,
                                                Long esWriteTime,
                                                Long mongoWriteMillis,
-                                               Exception ex ) {
+                                               Exception ex) {
         long version = entity.getVersion();
         String failureReason = (ex == null)
                 ? null
@@ -49,19 +51,19 @@ public class EntityMetadataService {
                         ? System.currentTimeMillis()
                         : null)
                 .build();
-            try{
-                mongoRepo.save(meta);
-                repo.save(meta);
-            }
-            catch (Exception e ){
-                throw e ;
-            }
-        return meta ;
+        try {
+            mongoRepo.save(meta);
+            repo.save(meta);
+        } catch (Exception e) {
+            throw e;
+        }
+        return meta;
     }
+
     public EntityMetadata updateEntityMetadata(String metaId,
                                                String status,
                                                Long esSyncMillis,
-                                              Exception ex ) {
+                                               Exception ex) {
         String failureReason = (ex == null)
                 ? null
                 : classify(ex);
@@ -74,6 +76,7 @@ public class EntityMetadataService {
 
         return meta;
     }
+
     private String classify(Exception ex) {
         Throwable cause = ex;
         while (cause.getCause() != null) cause = cause.getCause();

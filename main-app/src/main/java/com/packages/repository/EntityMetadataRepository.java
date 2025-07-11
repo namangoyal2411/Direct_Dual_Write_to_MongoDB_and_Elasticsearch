@@ -11,21 +11,22 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class EntityMetadataRepository {
     private final ElasticsearchClient elasticsearchClient;
-    public EntityMetadataRepository( @Qualifier("metadataClient") ElasticsearchClient elasticsearchClient) {
+
+    public EntityMetadataRepository(@Qualifier("metadataClient") ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }
-    public void save(EntityMetadata entityMetadata){
-        if(entityMetadata == null)
-            return ;
+
+    public void save(EntityMetadata entityMetadata) {
+        if (entityMetadata == null)
+            return;
         try {
             IndexRequest<EntityMetadata> request = IndexRequest.of(i -> i
                     .index("entity_metadata")
                     .id(entityMetadata.getMetaId())
                     .document(entityMetadata)
             );
-            IndexResponse response=  elasticsearchClient.index(request);
-        }
-        catch (Exception e){
+            IndexResponse response = elasticsearchClient.index(request);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

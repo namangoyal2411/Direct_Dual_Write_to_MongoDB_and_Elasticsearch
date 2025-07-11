@@ -1,4 +1,5 @@
 package com.packages.service;
+
 import com.packages.exception.EntityNotFoundException;
 import com.packages.model.Entity;
 import com.packages.repository.EntityMongoRepository;
@@ -18,7 +19,7 @@ public class EntityService {
 
     public Entity createEntity(Entity ent) {
         LocalDateTime now = LocalDateTime.now();
-        Entity toSave = new Entity(null, ent.getName(), now, now, false ,null);
+        Entity toSave = new Entity(null, ent.getName(), now, now, false, null);
         Entity saved = mongoRepo.createEntity(toSave);
         return saved;
     }
@@ -27,7 +28,7 @@ public class EntityService {
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
         Entity updated = EntityUtil.updateEntity(ent, existing);
-       updated  = mongoRepo.updateEntity(updated);
+        updated = mongoRepo.updateEntity(updated);
         return updated;
     }
 
@@ -35,7 +36,7 @@ public class EntityService {
         Entity existing = mongoRepo.getEntity(id)
                 .orElseThrow(() -> new EntityNotFoundException(id));
         Entity toUpdate = EntityUtil.markDeleted(existing);
-       mongoRepo.updateEntity(toUpdate);
+        mongoRepo.updateEntity(toUpdate);
         return true;
     }
 }

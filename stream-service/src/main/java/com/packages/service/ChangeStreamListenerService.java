@@ -93,6 +93,7 @@ public class ChangeStreamListenerService {
             workers.submit(() -> processChange(change, 0));
         });
     }
+
     public void processChange(ChangeStreamDocument<Document> change, int attempt) {
         String op = change.getOperationType().getValue();
         Entity entity = toEntity(change);
@@ -106,7 +107,7 @@ public class ChangeStreamListenerService {
                 }
             }
             long esTs = System.currentTimeMillis();
-            if (attempt==0) {
+            if (attempt == 0) {
                 entityMetadataService.createEntityMetadata(
                         entity,
                         op,
@@ -115,10 +116,10 @@ public class ChangeStreamListenerService {
                         mongoTs,
                         null
                 );
-            }
-            else {
+            } else {
                 String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
-                entityMetadataService.updateEntityMetadata(metaId,"success",System.currentTimeMillis(),null);}
+                entityMetadataService.updateEntityMetadata(metaId, "success", System.currentTimeMillis(), null);
+            }
             saveToken(change.getResumeToken());
         } catch (Exception ex) {
             boolean isInvalidData = false;
@@ -126,24 +127,23 @@ public class ChangeStreamListenerService {
             if (ex instanceof ElasticsearchException ee) {
                 isInvalidData = (ee.status() == 400);
             }
-            if (attempt==0) {
+            if (attempt == 0) {
                 entityMetadataService.createEntityMetadata(
                         entity,
                         op,
                         "failure",
                         null,
                         mongoTs,
-                       ex
+                        ex
                 );
-            }
-            else if (attempt>= maxRetries) {
+            } else if (attempt >= maxRetries) {
                 String metaId = entity.getId() + "-" + op + "-" + entity.getVersion();
-                entityMetadataService.updateEntityMetadata(metaId,"failure",null,ex);
+                entityMetadataService.updateEntityMetadata(metaId, "failure", null, ex);
                 Entity e = toEntity(change);
                 Document dlq = new Document()
-                        .append("entityId",   e.getId())
-                        .append("operation",  op)
-                        .append("version",    e.getVersion());
+                        .append("entityId", e.getId())
+                        .append("operation", op)
+                        .append("version", e.getVersion());
                 mongoClient
                         .getDatabase(dbName)
                         .getCollection("EntityDLQ")

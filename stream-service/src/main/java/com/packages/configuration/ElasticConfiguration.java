@@ -22,13 +22,13 @@ public class ElasticConfiguration {
     @Bean("entityClient")
     @Primary
     public ElasticsearchClient entityClient(
-            @Value("${es.entity.host}")               String host,
-            @Value("${es.entity.port}")               int    port,
-            @Value("${es.entity.connect-timeout-ms}") int    connectMs,
-            @Value("${es.entity.socket-timeout-ms}")  int    socketMs) {
+            @Value("${es.entity.host}") String host,
+            @Value("${es.entity.port}") int port,
+            @Value("${es.entity.connect-timeout-ms}") int connectMs,
+            @Value("${es.entity.socket-timeout-ms}") int socketMs) {
 
         RestClientBuilder builder = RestClient.builder(new HttpHost(host, port, "http"))
-                .setDefaultHeaders(new Header[] {
+                .setDefaultHeaders(new Header[]{
                         new BasicHeader("Connection", "close")
                 })
                 .setHttpClientConfigCallback(hc -> hc
