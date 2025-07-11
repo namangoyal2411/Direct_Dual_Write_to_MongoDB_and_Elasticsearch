@@ -168,6 +168,8 @@ spring.data.mongodb.port=27017
 spring.data.mongodb.database=my-database
 ```
 ## Commands for opening Javadoc 
- open main-app/build/docs/javadoc/index.html  
+ ```open main-app/build/docs/javadoc/index.html  
  open stream-service/build/docs/javadoc/index.html
  open consumer-service/build/docs/javadoc/index.html
+```
+
